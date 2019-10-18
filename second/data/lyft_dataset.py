@@ -85,10 +85,13 @@ def create_lyft_infos(root_path, version="train", max_sweeps=10):
     available_scenes = _get_available_scenes(lyft)
     available_scene_names = [s["name"] for s in available_scenes]
 
-    # Actual train/val/test split
+    # Check filter out scene names that are not in available scenes
     train_scenes = list(
         filter(lambda x: x in available_scene_names, train_scenes))
+
     val_scenes = list(filter(lambda x: x in available_scene_names, val_scenes))
+
+    # Get scene tokens for filtered scene names
     train_scenes = set([
         available_scenes[available_scene_names.index(s)]["token"]
         for s in train_scenes
@@ -184,8 +187,9 @@ def _fill_trainval_infos(lyft,
     # For each sample
     for sample in prog_bar(lyft.sample):
 
-        # TODO: Get Rid of - only for debuggging
-        if sample["scene_token"] not in train_scenes or val_scenes:
+        # Check if sample comes from either train or val sets
+        if sample["scene_token"] not in train_scenes and\
+                sample["scene_token"] not in val_scenes:
             continue
 
         # Getting sample data for lidar and front camera
