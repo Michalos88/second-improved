@@ -1,12 +1,10 @@
 import io as sysio
-import time
 
 import numba
 import numpy as np
-from scipy.interpolate import interp1d
 
 from second.core.non_max_suppression.nms_gpu import rotate_iou_gpu_eval
-from second.core import box_np_ops
+
 
 @numba.jit
 def get_thresholds(scores: np.ndarray, num_gt, num_sample_pts=41):
@@ -169,7 +167,7 @@ def box3d_overlap(boxes, qboxes, criterion=-1, z_axis=1, z_center=1.0):
     bev_axes = list(range(7))
     bev_axes.pop(z_axis + 3)
     bev_axes.pop(z_axis)
-    
+
     # t = time.time()
     # rinc = box_np_ops.rinter_cc(boxes[:, bev_axes], qboxes[:, bev_axes])
     rinc = rotate_iou_gpu_eval(boxes[:, bev_axes], qboxes[:, bev_axes], 2)
@@ -366,7 +364,7 @@ def calculate_iou_partly(gt_annos,
                          z_axis=1,
                          z_center=1.0):
     """fast iou algorithm. this function can be used independently to
-    do result analysis. 
+    do result analysis.
     Args:
         gt_annos: dict, must from get_label_annos() in kitti_common.py
         dt_annos: dict, must from get_label_annos() in kitti_common.py
@@ -493,8 +491,8 @@ def eval_class_v3(gt_annos,
         current_class: int, 0: car, 1: pedestrian, 2: cyclist
         difficulty: int. eval difficulty, 0: easy, 1: normal, 2: hard
         metric: eval type. 0: bbox, 1: bev, 2: 3d
-        min_overlap: float, min overlap. official: 
-            [[0.7, 0.5, 0.5], [0.7, 0.5, 0.5], [0.7, 0.5, 0.5]] 
+        min_overlap: float, min overlap. official:
+            [[0.7, 0.5, 0.5], [0.7, 0.5, 0.5], [0.7, 0.5, 0.5]]
             format: [metric, class]. choose one from matrix above.
         num_parts: int. a parameter for fast calculate algorithm
 

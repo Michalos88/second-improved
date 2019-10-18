@@ -1,22 +1,18 @@
 import json
 import pickle
-import time
-import random
 from copy import deepcopy
-from functools import partial
 from pathlib import Path
 import subprocess
 
 import fire
 import numpy as np
 
-from second.core import box_np_ops
-from second.core import preprocess as prep
-from second.data import kitti_common as kitti
+# from second.core import box_np_ops
+# from second.core import preprocess as prep
+# from second.data import kitti_common as kitti
 from second.data.dataset import Dataset, register_dataset
-from second.utils.eval import get_coco_eval_result, get_official_eval_result
+# from second.utils.eval import get_coco_eval_result, get_official_eval_result
 from second.utils.progress_bar import progress_bar_iter as prog_bar
-from second.utils.timer import simple_timer
 
 
 @register_dataset
@@ -599,22 +595,34 @@ def _fill_trainval_infos(nusc,
                          val_scenes,
                          test=False,
                          max_sweeps=10):
+    """
+        Generates train_val infos
+    """
     train_nusc_infos = []
     val_nusc_infos = []
     from pyquaternion import Quaternion
+
+    # For each sample
     for sample in prog_bar(nusc.sample):
+        # Getting sample data for lidar and front camera
         lidar_token = sample["data"]["LIDAR_TOP"]
         cam_front_token = sample["data"]["CAM_FRONT"]
+
         sd_rec = nusc.get('sample_data', sample['data']["LIDAR_TOP"])
+
         cs_record = nusc.get('calibrated_sensor',
                              sd_rec['calibrated_sensor_token'])
+
         pose_record = nusc.get('ego_pose', sd_rec['ego_pose_token'])
+
         lidar_path, boxes, _ = nusc.get_sample_data(lidar_token)
 
         cam_path, _, cam_intrinsic = nusc.get_sample_data(cam_front_token)
-        assert Path(lidar_path).exists(), (
-            "you must download all trainval data, key-frame only dataset performs far worse than sweeps."
-        )
+
+        # Checks if lidar sweeps are available - not just-key-frames
+        assert Path(lidar_path).exists(), ("Sweeps not found")
+
+        # Info init
         info = {
             "lidar_path": lidar_path,
             "cam_front_path": cam_path,
@@ -627,6 +635,7 @@ def _fill_trainval_infos(nusc,
             "timestamp": sample["timestamp"],
         }
 
+        # Sweep Generation
         l2e_r = info["lidar2ego_rotation"]
         l2e_t = info["lidar2ego_translation"]
         e2g_r = info["ego2global_rotation"]
@@ -715,10 +724,16 @@ def _fill_trainval_infos(nusc,
 
 
 def create_nuscenes_infos(root_path, version="v1.0-trainval", max_sweeps=10):
+
+    # Import and initializes an nuScenes SDK
     from nuscenes.nuscenes import NuScenes
     nusc = NuScenes(version=version, dataroot=root_path, verbose=True)
+
+    # Imports indexes of the splits
     from nuscenes.utils import splits
     available_vers = ["v1.0-trainval", "v1.0-test", "v1.0-mini"]
+
+    # Different train/val/test splits
     assert version in available_vers
     if version == "v1.0-trainval":
         train_scenes = splits.train
@@ -731,11 +746,15 @@ def create_nuscenes_infos(root_path, version="v1.0-trainval", max_sweeps=10):
         val_scenes = splits.mini_val
     else:
         raise ValueError("unknown")
-    test = "test" in version
+
+    test = "test" in version  # if no test in version this will be None
     root_path = Path(root_path)
-    # filter exist scenes. you may only download part of dataset.
+
+    # Filter out not existing scenes. as you may have only downloaded mini
     available_scenes = _get_available_scenes(nusc)
     available_scene_names = [s["name"] for s in available_scenes]
+
+    # Actual train/val/test split
     train_scenes = list(
         filter(lambda x: x in available_scene_names, train_scenes))
     val_scenes = list(filter(lambda x: x in available_scene_names, val_scenes))
@@ -747,16 +766,23 @@ def create_nuscenes_infos(root_path, version="v1.0-trainval", max_sweeps=10):
         available_scenes[available_scene_names.index(s)]["token"]
         for s in val_scenes
     ])
+
+    # Print sizes and meta data
     if test:
         print(f"test scene: {len(train_scenes)}")
     else:
         print(
             f"train scene: {len(train_scenes)}, val scene: {len(val_scenes)}")
+
+    # Generating training infos and metadata
     train_nusc_infos, val_nusc_infos = _fill_trainval_infos(
         nusc, train_scenes, val_scenes, test, max_sweeps=max_sweeps)
+
     metadata = {
         "version": version,
     }
+
+    # Save meta data and infos, depending if test or train/val
     if test:
         print(f"test sample: {len(train_nusc_infos)}")
         data = {
@@ -769,10 +795,13 @@ def create_nuscenes_infos(root_path, version="v1.0-trainval", max_sweeps=10):
         print(
             f"train sample: {len(train_nusc_infos)}, val sample: {len(val_nusc_infos)}"
         )
+
         data = {
             "infos": train_nusc_infos,
             "metadata": metadata,
         }
+
+        # Save info
         with open(root_path / "infos_train.pkl", 'wb') as f:
             pickle.dump(data, f)
         data["infos"] = val_nusc_infos

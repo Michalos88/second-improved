@@ -1,27 +1,21 @@
-import pathlib
-import pickle
-import time
-from functools import partial
-
-import numpy as np
-
-from second.core import box_np_ops
-from second.core import preprocess as prep
-from second.data import kitti_common as kitti
 
 REGISTERED_DATASET_CLASSES = {}
+
 
 def register_dataset(cls, name=None):
     global REGISTERED_DATASET_CLASSES
     if name is None:
         name = cls.__name__
-    assert name not in REGISTERED_DATASET_CLASSES, f"exist class: {REGISTERED_DATASET_CLASSES}"
+    assert name not in REGISTERED_DATASET_CLASSES, f"exist class:\
+            {REGISTERED_DATASET_CLASSES}"
     REGISTERED_DATASET_CLASSES[name] = cls
     return cls
 
+
 def get_dataset_class(name):
     global REGISTERED_DATASET_CLASSES
-    assert name in REGISTERED_DATASET_CLASSES, f"available class: {REGISTERED_DATASET_CLASSES}"
+    assert name in REGISTERED_DATASET_CLASSES, f"available class:\
+            {REGISTERED_DATASET_CLASSES}"
     return REGISTERED_DATASET_CLASSES[name]
 
 
@@ -32,6 +26,7 @@ class Dataset(object):
     supporting integer indexing in range from 0 to len(self) exclusive.
     """
     NumPointFeatures = -1
+
     def __getitem__(self, index):
         """This function is used for preprocess.
         you need to create a input dict in this function for network inference.
@@ -56,24 +51,24 @@ class Dataset(object):
         """Dataset must provide a unified function to get data.
         Args:
             query: int or dict. this param must support int for training.
-                if dict, should have this format (no example yet): 
+                if dict, should have this format (no example yet):
                 {
                     sensor_name: {
                         sensor_meta
                     }
                 }
-                if int, will return all sensor data. 
+                if int, will return all sensor data.
                 (TODO: how to deal with unsynchronized data?)
         Returns:
-            sensor_data: dict. 
-            if query is int (return all), return a dict with all sensors: 
+            sensor_data: dict.
+            if query is int (return all), return a dict with all sensors:
             {
                 sensor_name: sensor_data
                 ...
                 metadata: ... (for kitti, contains image_idx)
             }
-            
-            if sensor is lidar (all lidar point cloud must be concatenated to one array): 
+
+            if sensor is lidar (all lidar point cloud must be concatenated to one array):
             e.g. If your dataset have two lidar sensor, you need to return a single dict:
             {
                 "lidar": {
