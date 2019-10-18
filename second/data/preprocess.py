@@ -1,22 +1,13 @@
-import pathlib
-import pickle
 import time
 from collections import defaultdict
-from functools import partial
 
-import cv2
 import numpy as np
-from skimage import io as imgio
 
 from second.core import box_np_ops
 from second.core import preprocess as prep
 from second.core.geometry import points_in_convex_polygon_3d_jit
 from second.data import kitti_common as kitti
-from second.utils import simplevis
-from second.utils.timer import simple_timer
 
-import seaborn as sns
-import matplotlib.pyplot as plt 
 
 def merge_second_batch(batch_list):
     example_merged = defaultdict(list)
@@ -84,7 +75,7 @@ def merge_second_batch_multigpu(batch_list):
             continue
         else:
             ret[key] = np.stack(elems, axis=0)
-        
+
     return ret
 
 
@@ -130,7 +121,7 @@ def prep_pointcloud(input_dict,
                     random_flip_y=True,
                     sample_importance=1.0,
                     out_dtype=np.float32):
-    """convert point cloud to voxels, create targets if ground truths 
+    """convert point cloud to voxels, create targets if ground truths
     exists.
 
     input_dict format: dataset.get_sensor_data format
@@ -374,7 +365,7 @@ def prep_pointcloud(input_dict,
             matched_thresholds=matched_thresholds,
             unmatched_thresholds=unmatched_thresholds,
             importance=gt_dict["gt_importance"])
-        
+
         """
         boxes_lidar = gt_dict["gt_boxes"]
         bev_map = simplevis.nuscene_vis(points, boxes_lidar, gt_dict["gt_names"])
@@ -384,7 +375,7 @@ def prep_pointcloud(input_dict,
         bev_map = simplevis.draw_box_in_bev(bev_map, [-50, -50, 3, 50, 50, 1], assigned_anchors, [255, 0, 0])
         cv2.imshow('anchors', bev_map)
         cv2.waitKey(0)
-        
+
         boxes_lidar = gt_dict["gt_boxes"]
         pp_map = np.zeros(grid_size[:2], dtype=np.float32)
         voxels_max = np.max(voxels[:, :, 2], axis=1, keepdims=False)

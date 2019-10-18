@@ -7,11 +7,9 @@ import subprocess
 import fire
 import numpy as np
 
-# from second.core import box_np_ops
-# from second.core import preprocess as prep
-# from second.data import kitti_common as kitti
+from second.data import kitti_common as kitti
 from second.data.dataset import Dataset, register_dataset
-# from second.utils.eval import get_coco_eval_result, get_official_eval_result
+from second.utils.eval import get_coco_eval_result, get_official_eval_result
 from second.utils.progress_bar import progress_bar_iter as prog_bar
 
 

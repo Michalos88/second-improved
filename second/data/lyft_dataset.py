@@ -52,6 +52,104 @@ class LyftDataset(Dataset):
     def __len__(self):
         return len(self._lyft_infos)
 
+    def get_sensor_data(self, query):
+        idx = query  # iloc of sample
+        read_test_image = False
+
+        # Not sure how is this useful
+        if isinstance(query, dict):
+            assert "lidar" in query
+            idx = query["lidar"]["idx"]
+            read_test_image = "cam" in query
+
+        # Get sample
+        info = self._lyft_infos[idx]
+
+        # Init result - output
+        res = {
+            "lidar": {
+                "type": "lidar",
+                "points": None,
+            },
+            "metadata": {
+                "token": info["token"]
+            },
+        }
+
+        lidar_path = Path(info['lidar_path'])
+
+        # -----> if there no sweeps, we have at least one point cloud
+        # Get main point cloud
+        points = np.fromfile(
+            str(lidar_path), dtype=np.float32, count=-1).reshape([-1, 5])
+
+        # Normalize points
+        points[:, 3] /= 255
+        points[:, 4] = 0
+        sweep_points_list = [points]
+
+        # Format time stamp
+        ts = info["timestamp"] / 1e6
+        # <------
+
+        # Go through n sweeps, if n=0 this will be skipped
+        for sweep in info["sweeps"]:
+            # Get point clouds starting with main
+            points_sweep = np.fromfile(
+                str(sweep["lidar_path"]), dtype=np.float32,
+                count=-1).reshape([-1, 5])
+
+            # Normalize points
+            sweep_ts = sweep["timestamp"] / 1e6
+            points_sweep[:, 3] /= 255
+
+            # Format rotation and translation
+            points_sweep[:, :3] = points_sweep[:, :3] @ sweep[
+                "sweep2lidar_rotation"].T
+            points_sweep[:, :3] += sweep["sweep2lidar_translation"]
+            points_sweep[:, 4] = ts - sweep_ts
+            sweep_points_list.append(points_sweep)
+
+        points = np.concatenate(sweep_points_list, axis=0)[:, [0, 1, 2, 4]]
+
+        # If would like to use images, default False
+        if read_test_image:
+            if Path(info["cam_front_path"]).exists():
+                with open(str(info["cam_front_path"]), 'rb') as f:
+                    image_str = f.read()
+            else:
+                image_str = None
+            res["cam"] = {
+                "type": "camera",
+                "data": image_str,
+                "datatype": Path(info["cam_front_path"]).suffix[1:],
+            }
+
+        # Add point cloud to output
+        res["lidar"]["points"] = points
+
+        # Get ground truth boxes
+        if 'gt_boxes' in info:
+            # Filters out all annotations, without point clouds
+            # However due to the fact that this field is not
+            # provided by Lyft, we will accepts all annoations
+            # TODO: Impute this field
+            mask = info["num_lidar_pts"] == -1
+            gt_boxes = info["gt_boxes"][mask]
+
+            # Default is False
+            if self._with_velocity:
+                gt_velocity = info["gt_velocity"][mask]
+                nan_mask = np.isnan(gt_velocity[:, 0])
+                gt_velocity[nan_mask] = [0.0, 0.0]
+                gt_boxes = np.concatenate([gt_boxes, gt_velocity], axis=-1)
+            res["lidar"]["annotations"] = {
+                'boxes': gt_boxes,
+                'names': info["gt_names"][mask],
+            }
+
+        return res
+
 
 def create_lyft_infos(root_path, version="train", max_sweeps=10):
 
@@ -279,6 +377,7 @@ def _fill_trainval_infos(lyft,
                 lyft.get('sample_annotation', token)
                 for token in sample['anns']
             ]
+
             locs = np.array([b.center for b in boxes]).reshape(-1, 3)
             dims = np.array([b.wlh for b in boxes]).reshape(-1, 3)
             rots = np.array([b.orientation.yaw_pitch_roll[0]
