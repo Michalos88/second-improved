@@ -5,7 +5,7 @@ from pathlib import Path
 import pickle
 import shutil
 import time
-import re 
+import re
 import fire
 import numpy as np
 import torch
@@ -84,10 +84,10 @@ def freeze_params(params: dict, include: str=None, exclude: str=None):
     for k, p in params.items():
         if include_re is not None:
             if include_re.match(k) is not None:
-                continue 
+                continue
         if exclude_re is not None:
             if exclude_re.match(k) is None:
-                continue 
+                continue
         remain_params.append(p)
     return remain_params
 
@@ -122,7 +122,7 @@ def filter_param_dict(state_dict: dict, include: str=None, exclude: str=None):
                 continue
         if exclude_re is not None:
             if exclude_re.match(k) is not None:
-                continue 
+                continue
         res_dict[k] = p
     return res_dict
 
@@ -143,19 +143,29 @@ def train(config_path,
           resume=False):
     """train a VoxelNet model specified by a config file.
     """
+    # Check if GPU available
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
+
+    # Set-up model dir
     model_dir = str(Path(model_dir).resolve())
     if create_folder:
         if Path(model_dir).exists():
             model_dir = torchplus.train.create_folder(model_dir)
     model_dir = Path(model_dir)
+
+    # Check if not resume training and the dir exisits
     if not resume and model_dir.exists():
         raise ValueError("model dir exists and you don't specify resume.")
+
     model_dir.mkdir(parents=True, exist_ok=True)
-    if result_path is None:
+
+    # Set-up output folder
+   if result_path is None:
         result_path = model_dir / 'results'
+
     config_file_bkp = "pipeline.config"
+
+    # Not really sure what's this about
     if isinstance(config_path, str):
         # directly provide a config object. this usually used
         # when you want to train with several different parameters in
@@ -170,11 +180,13 @@ def train(config_path,
     with (model_dir / config_file_bkp).open("w") as f:
         f.write(proto_str)
 
+    # Get Seperate Configs
     input_cfg = config.train_input_reader
     eval_input_cfg = config.eval_input_reader
     model_cfg = config.model.second
     train_cfg = config.train_config
 
+    # Build Network
     net = build_network(model_cfg, measure_time).to(device)
     # if train_cfg.enable_mixed_precision:
     #     net.half()
@@ -184,6 +196,8 @@ def train(config_path,
     voxel_generator = net.voxel_generator
     print("num parameters:", len(list(net.parameters())))
     torchplus.train.try_restore_latest_checkpoints(model_dir, [net])
+
+    # If using pretrained model
     if pretrained_path is not None:
         model_dict = net.state_dict()
         pretrained_dict = torch.load(pretrained_path)
@@ -191,11 +205,11 @@ def train(config_path,
         new_pretrained_dict = {}
         for k, v in pretrained_dict.items():
             if k in model_dict and v.shape == model_dict[k].shape:
-                new_pretrained_dict[k] = v        
+                new_pretrained_dict[k] = v
         print("Load pretrained parameters:")
         for k, v in new_pretrained_dict.items():
             print(k, v.shape)
-        model_dict.update(new_pretrained_dict) 
+        model_dict.update(new_pretrained_dict)
         net.load_state_dict(model_dict)
         freeze_params_v2(dict(net.named_parameters()), freeze_include, freeze_exclude)
         net.clear_global_step()
@@ -206,13 +220,18 @@ def train(config_path,
         net_parallel = net
     optimizer_cfg = train_cfg.optimizer
     loss_scale = train_cfg.loss_scale_factor
+
+    # FASTAI OPTIMIZER??????!!!! WOWK
     fastai_optimizer = optimizer_builder.build(
         optimizer_cfg,
         net,
         mixed=False,
         loss_scale=loss_scale)
+
     if loss_scale < 0:
         loss_scale = "dynamic"
+
+    # When using mixed precision, to save gpu mem
     if train_cfg.enable_mixed_precision:
         max_num_voxels = input_cfg.preprocess.max_number_of_voxels * input_cfg.batch_size
         assert max_num_voxels < 65535, "spconv fp16 training only support this"
@@ -225,15 +244,20 @@ def train(config_path,
         net.metrics_to_float()
     else:
         amp_optimizer = fastai_optimizer
+
+    # Restore latest checkpoint
     torchplus.train.try_restore_latest_checkpoints(model_dir,
                                                    [fastai_optimizer])
+    # Learning rate scheduler? - Whaaaaat?
     lr_scheduler = lr_scheduler_builder.build(optimizer_cfg, amp_optimizer,
                                               train_cfg.steps)
+    # More Setups for mixed precision
     if train_cfg.enable_mixed_precision:
         float_dtype = torch.float16
     else:
         float_dtype = torch.float32
 
+    # For multi-gpu set-up cool
     if multi_gpu:
         num_gpu = torch.cuda.device_count()
         print(f"MULTI-GPU: use {num_gpu} gpu")
@@ -259,6 +283,7 @@ def train(config_path,
         voxel_generator=voxel_generator,
         target_assigner=target_assigner)
 
+    # DataLoader like in Fastai
     dataloader = torch.utils.data.DataLoader(
         dataset,
         batch_size=input_cfg.batch_size * num_gpu,
@@ -268,6 +293,8 @@ def train(config_path,
         collate_fn=collate_fn,
         worker_init_fn=_worker_init_fn,
         drop_last=not multi_gpu)
+
+    # Val DataLoader
     eval_dataloader = torch.utils.data.DataLoader(
         eval_dataset,
         batch_size=eval_input_cfg.batch_size, # only support multi-gpu train
@@ -312,7 +339,7 @@ def train(config_path,
                 cls_neg_loss = ret_dict["cls_neg_loss"].mean()
                 loc_loss = ret_dict["loc_loss"]
                 cls_loss = ret_dict["cls_loss"]
-                
+
                 cared = ret_dict["cared"]
                 labels = example_torch["labels"]
                 if train_cfg.enable_mixed_precision:
@@ -546,7 +573,7 @@ def evaluate(config_path,
 
 def helper_tune_target_assigner(config_path, target_rate=None, update_freq=200, update_delta=0.01, num_tune_epoch=5):
     """get information of target assign to tune thresholds in anchor generator.
-    """    
+    """
     if isinstance(config_path, str):
         # directly provide a config object. this usually used
         # when you want to train with several different parameters in
@@ -588,7 +615,7 @@ def helper_tune_target_assigner(config_path, target_rate=None, update_freq=200, 
         collate_fn=merge_second_batch,
         worker_init_fn=_worker_init_fn,
         drop_last=False)
-    
+
     class_count = {}
     anchor_count = {}
     class_count_tune = {}
@@ -609,7 +636,7 @@ def helper_tune_target_assigner(config_path, target_rate=None, update_freq=200, 
             gt_names = example["gt_names"]
             for name in gt_names:
                 class_count_tune[name] += 1
-            
+
             labels = example['labels']
             for i in range(1, len(classes) + 1):
                 anchor_count_tune[classes[i - 1]] += int(np.sum(labels == i))
@@ -640,7 +667,7 @@ def helper_tune_target_assigner(config_path, target_rate=None, update_freq=200, 
 
         for name in gt_names:
             class_count[name] += 1
-        
+
         labels = example['labels']
         for i in range(1, len(classes) + 1):
             anchor_count[classes[i - 1]] += int(np.sum(labels == i))

@@ -40,8 +40,9 @@ def create_groundtruth_database(dataset_class_name,
     all_db_infos = {}
 
     group_counter = 0
-
-    for j in prog_bar(list(range(len(dataset)))):
+    start = 0
+    # if not (db_info_save_path/"db_checkpoints").as_posix
+    for j in prog_bar(list(range(start, len(dataset)))):
 
         image_idx = j
         sensor_data = dataset.get_sensor_data(j)

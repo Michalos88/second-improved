@@ -13,6 +13,7 @@ import numpy as np
 from second.data.dataset import Dataset, register_dataset
 # from second.utils.eval import get_coco_eval_result, get_official_eval_result
 from second.utils.progress_bar import progress_bar_iter as prog_bar
+from second.data import lyft_splits as splits
 
 
 @register_dataset
@@ -87,7 +88,6 @@ class LyftDataset(Dataset):
         points[:, 3] /= 255
         points[:, 4] = 0
         sweep_points_list = [points]
-
         # Format time stamp
         ts = info["timestamp"] / 1e6
         # <------
@@ -162,7 +162,6 @@ def create_lyft_infos(root_path, version="train", max_sweeps=10):
                        verbose=True)
 
     # Imports indexes of the splits
-    from second.data import lyft_splits as splits
     available_vers = ["train", "test"]
 
     # Different train/val/test splits
@@ -287,7 +286,8 @@ def _fill_trainval_infos(lyft,
 
         # Check if sample comes from either train or val sets
         if sample["scene_token"] not in train_scenes and\
-                sample["scene_token"] not in val_scenes:
+                sample["scene_token"] not in val_scenes and\
+                sample['token'] not in splits.blk_listed:
             continue
 
         # Getting sample data for lidar and front camera
@@ -335,6 +335,12 @@ def _fill_trainval_infos(lyft,
             if not sd_rec['prev'] == "":
 
                 sd_rec = lyft.get('sample_data', sd_rec['prev'])
+
+                # To make sure that broken sample does not end up in sweeps
+                if sd_rec['sample_token'] in splits.blk_listed:
+                    print('here')
+                    continue
+
                 cs_record = lyft.get('calibrated_sensor',
                                      sd_rec['calibrated_sensor_token'])
                 pose_record = lyft.get('ego_pose', sd_rec['ego_pose_token'])
@@ -369,6 +375,7 @@ def _fill_trainval_infos(lyft,
                 sweeps.append(sweep)
             else:
                 break
+
         info["sweeps"] = sweeps
 
         # Collects Annotations
