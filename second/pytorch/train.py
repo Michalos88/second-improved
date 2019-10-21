@@ -24,6 +24,7 @@ from second.utils.log_tool import SimpleModelLog
 from second.utils.progress_bar import ProgressBar
 import psutil
 
+
 def example_convert_to_torch(example, dtype=torch.float32,
                              device=None) -> dict:
     device = device or torch.device("cuda:0")
@@ -67,10 +68,12 @@ def build_network(model_cfg, measure_time=False):
         model_cfg, voxel_generator, target_assigner, measure_time=measure_time)
     return net
 
+
 def _worker_init_fn(worker_id):
     time_seed = np.array(time.time(), dtype=np.int32)
     np.random.seed(time_seed + worker_id)
     print(f"WORKER {worker_id} seed:", np.random.get_state()[1][0])
+
 
 def freeze_params(params: dict, include: str=None, exclude: str=None):
     assert isinstance(params, dict)
@@ -160,7 +163,7 @@ def train(config_path,
     model_dir.mkdir(parents=True, exist_ok=True)
 
     # Set-up output folder
-   if result_path is None:
+    if result_path is None:
         result_path = model_dir / 'results'
 
     config_file_bkp = "pipeline.config"
