@@ -1,10 +1,10 @@
-# import json
+import json
 import pickle
 # from copy import deepcopy
 from pathlib import Path
 # import subprocess
 
-# import fire
+import fire
 import numpy as np
 
 # from second.core import box_np_ops
@@ -157,6 +157,18 @@ class LyftDataset(Dataset):
             }
 
         return res
+
+
+@register_dataset
+class LyftDatasetD2(LyftDataset):
+    """Halved Train Set"""
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        # To make sure that we only reduce full train dataset
+        if len(self._lyft_infos) > 17000:
+            self._lyft_infos = list(
+                sorted(self._lyft_infos, key=lambda e: e["timestamp"]))
+            self._lyft_infos = self._lyft_infos[::2]
 
 
 def create_lyft_infos(root_path, version="train", max_sweeps=10):
@@ -436,3 +448,66 @@ def _fill_trainval_infos(lyft,
             val_lyft_infos.append(info)
 
     return train_lyft_infos, val_lyft_infos
+
+
+def get_all_box_mean(info_path):
+    det_names = ['car',
+                 'truck',
+                 'other_vehicle',
+                 'bus',
+                 'pedestrian',
+                 'bicycle',
+                 'motorcycle',
+                 'emergency_vehicle',
+                 'animal']
+    det_names = sorted(det_names)
+    res = {}
+    details = {}
+    for k in det_names:
+        result = get_box_mean(info_path, k)
+        details[k] = result["detail"]
+        res[k] = result["box3d"]
+    print(json.dumps(res, indent=2))
+    return details
+
+
+def get_box_mean(info_path, class_name="car",
+                 eval_version="lyft_cvpr_2019"):
+    with open(info_path, 'rb') as f:
+        lyft_infos = pickle.load(f)["infos"]
+    from second.configs.lyft.eval import eval_detection_configs
+    cls_range_map = eval_detection_configs[eval_version]["class_range"]
+
+    gt_boxes_list = []
+    gt_vels_list = []
+    for info in lyft_infos:
+        gt_boxes = info["gt_boxes"]
+        gt_vels = info["gt_velocity"]
+        gt_names = info["gt_names"]
+        mask = np.array([s == class_name for s in info["gt_names"]],
+                        dtype=np.bool_)
+        gt_names = gt_names[mask]
+        gt_boxes = gt_boxes[mask]
+        gt_vels = gt_vels[mask]
+        det_range = np.array([cls_range_map[n] for n in gt_names])
+        det_range = det_range[..., np.newaxis] @ np.array([[-1, -1, 1, 1]])
+        mask = (gt_boxes[:, :2] >= det_range[:, :2]).all(1)
+        mask &= (gt_boxes[:, :2] <= det_range[:, 2:]).all(1)
+
+        gt_boxes_list.append(gt_boxes[mask].reshape(-1, 7))
+        gt_vels_list.append(gt_vels[mask].reshape(-1, 2))
+    gt_boxes_list = np.concatenate(gt_boxes_list, axis=0)
+    gt_vels_list = np.concatenate(gt_vels_list, axis=0)
+    nan_mask = np.isnan(gt_vels_list[:, 0])
+    gt_vels_list = gt_vels_list[~nan_mask]
+
+    # return gt_vels_list.mean(0).tolist()
+    return {
+        "box3d": gt_boxes_list.mean(0).tolist(),
+        "detail": gt_boxes_list
+        # "velocity": gt_vels_list.mean(0).tolist(),
+    }
+
+
+if __name__ == "__main__":
+    fire.Fire()

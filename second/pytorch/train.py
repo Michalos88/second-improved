@@ -1,9 +1,6 @@
-import copy
 import json
-import os
 from pathlib import Path
 import pickle
-import shutil
 import time
 import re
 import fire
@@ -11,11 +8,10 @@ import numpy as np
 import torch
 from google.protobuf import text_format
 
-import second.data.kitti_common as kitti
 import torchplus
 from second.builder import target_assigner_builder, voxel_builder
-from second.core import box_np_ops
-from second.data.preprocess import merge_second_batch, merge_second_batch_multigpu
+from second.data.preprocess import merge_second_batch,\
+        merge_second_batch_multigpu
 from second.protos import pipeline_pb2
 from second.pytorch.builder import (box_coder_builder, input_reader_builder,
                                     lr_scheduler_builder, optimizer_builder,
@@ -30,7 +26,8 @@ def example_convert_to_torch(example, dtype=torch.float32,
     device = device or torch.device("cuda:0")
     example_torch = {}
     float_names = [
-        "voxels", "anchors", "reg_targets", "reg_weights", "bev_map", "importance"
+        "voxels", "anchors", "reg_targets",
+        "reg_weights", "bev_map", "importance"
     ]
     for k, v in example.items():
         if k in float_names:
@@ -75,7 +72,7 @@ def _worker_init_fn(worker_id):
     print(f"WORKER {worker_id} seed:", np.random.get_state()[1][0])
 
 
-def freeze_params(params: dict, include: str=None, exclude: str=None):
+def freeze_params(params: dict, include: str = None, exclude: str = None):
     assert isinstance(params, dict)
     include_re = None
     if include is not None:
@@ -94,7 +91,8 @@ def freeze_params(params: dict, include: str=None, exclude: str=None):
         remain_params.append(p)
     return remain_params
 
-def freeze_params_v2(params: dict, include: str=None, exclude: str=None):
+
+def freeze_params_v2(params: dict, include: str = None, exclude: str = None):
     assert isinstance(params, dict)
     include_re = None
     if include is not None:
@@ -110,7 +108,9 @@ def freeze_params_v2(params: dict, include: str=None, exclude: str=None):
             if exclude_re.match(k) is None:
                 p.requires_grad = False
 
-def filter_param_dict(state_dict: dict, include: str=None, exclude: str=None):
+
+def filter_param_dict(state_dict: dict, include: str = None,
+                      exclude: str = None):
     assert isinstance(state_dict, dict)
     include_re = None
     if include is not None:
@@ -204,7 +204,9 @@ def train(config_path,
     if pretrained_path is not None:
         model_dict = net.state_dict()
         pretrained_dict = torch.load(pretrained_path)
-        pretrained_dict = filter_param_dict(pretrained_dict, pretrained_include, pretrained_exclude)
+        pretrained_dict = filter_param_dict(pretrained_dict,
+                                            pretrained_include,
+                                            pretrained_exclude)
         new_pretrained_dict = {}
         for k, v in pretrained_dict.items():
             if k in model_dict and v.shape == model_dict[k].shape:
@@ -214,7 +216,8 @@ def train(config_path,
             print(k, v.shape)
         model_dict.update(new_pretrained_dict)
         net.load_state_dict(model_dict)
-        freeze_params_v2(dict(net.named_parameters()), freeze_include, freeze_exclude)
+        freeze_params_v2(dict(net.named_parameters()),
+                         freeze_include, freeze_exclude)
         net.clear_global_step()
         net.clear_metrics()
     if multi_gpu:
@@ -236,14 +239,14 @@ def train(config_path,
 
     # When using mixed precision, to save gpu mem
     if train_cfg.enable_mixed_precision:
-        max_num_voxels = input_cfg.preprocess.max_number_of_voxels * input_cfg.batch_size
+        max_num_voxels = input_cfg.preprocess.max_number_of_voxels *\
+                input_cfg.batch_size
         assert max_num_voxels < 65535, "spconv fp16 training only support this"
         from apex import amp
         net, amp_optimizer = amp.initialize(net, fastai_optimizer,
-                                        opt_level="O2",
-                                        keep_batchnorm_fp32=True,
-                                        loss_scale=loss_scale
-                                        )
+                                            opt_level="O2",
+                                            keep_batchnorm_fp32=True,
+                                            loss_scale=loss_scale)
         net.metrics_to_float()
     else:
         amp_optimizer = fastai_optimizer
@@ -300,7 +303,7 @@ def train(config_path,
     # Val DataLoader
     eval_dataloader = torch.utils.data.DataLoader(
         eval_dataset,
-        batch_size=eval_input_cfg.batch_size, # only support multi-gpu train
+        batch_size=eval_input_cfg.batch_size,  # only support multi-gpu train
         shuffle=False,
         num_workers=eval_input_cfg.preprocess.num_workers,
         pin_memory=False,
@@ -341,7 +344,7 @@ def train(config_path,
                 cls_pos_loss = ret_dict["cls_pos_loss"].mean()
                 cls_neg_loss = ret_dict["cls_neg_loss"].mean()
                 loc_loss = ret_dict["loc_loss"]
-                cls_loss = ret_dict["cls_loss"]
+                # cls_loss = ret_dict["cls_loss"]
 
                 cared = ret_dict["cared"]
                 labels = example_torch["labels"]
@@ -407,16 +410,17 @@ def train(config_path,
                     model_logging.log_metrics(metrics, global_step)
 
                 if global_step % steps_per_eval == 0:
-                    torchplus.train.save_models(model_dir, [net, amp_optimizer],
+                    torchplus.train.save_models(model_dir,
+                                                [net, amp_optimizer],
                                                 net.get_global_step())
                     net.eval()
                     result_path_step = result_path / f"step_{net.get_global_step()}"
                     result_path_step.mkdir(parents=True, exist_ok=True)
                     model_logging.log_text("#################################",
-                                        global_step)
+                                           global_step)
                     model_logging.log_text("# EVAL", global_step)
                     model_logging.log_text("#################################",
-                                        global_step)
+                                           global_step)
                     model_logging.log_text("Generate output labels...", global_step)
                     t = time.time()
                     detections = []
@@ -590,9 +594,9 @@ def helper_tune_target_assigner(config_path, target_rate=None, update_freq=200, 
         proto_str = text_format.MessageToString(config, indent=2)
 
     input_cfg = config.train_input_reader
-    eval_input_cfg = config.eval_input_reader
+    # eval_input_cfg = config.eval_input_reader
     model_cfg = config.model.second
-    train_cfg = config.train_config
+    # train_cfg = config.train_config
 
     net = build_network(model_cfg, False)
     # if train_cfg.enable_mixed_precision:
