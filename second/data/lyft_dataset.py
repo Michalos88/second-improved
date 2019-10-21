@@ -53,6 +53,14 @@ class LyftDataset(Dataset):
     def __len__(self):
         return len(self._lyft_infos)
 
+    def __getitem__(self, idx):
+        input_dict = self.get_sensor_data(idx)
+        example = self._prep_func(input_dict=input_dict)
+        example["metadata"] = input_dict["metadata"]
+        if "anchors_mask" in example:
+            example["anchors_mask"] = example["anchors_mask"].astype(np.uint8)
+        return example
+
     def get_sensor_data(self, query):
         idx = query  # iloc of sample
         read_test_image = False
