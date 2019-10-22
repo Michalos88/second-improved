@@ -452,9 +452,9 @@ def train(config_path,
             if step >= total_step:
                 break
     except Exception as e:
-        print(json.dumps(example["metadata"], indent=2))
+        # print(json.dumps(example["metadata"], indent=2))
         model_logging.log_text(str(e), step)
-        model_logging.log_text(json.dumps(example["metadata"], indent=2), step)
+        # model_logging.log_text(json.dumps(example["metadata"], indent=2), step)
         torchplus.train.save_models(model_dir, [net, amp_optimizer],
                                     step)
         raise e
@@ -687,9 +687,10 @@ def helper_tune_target_assigner(config_path, target_rate=None, update_freq=200, 
             if ag.class_name in target_rate:
                 print(ag.class_name, ag.match_threshold, ag.unmatch_threshold)
 
+
 def mcnms_parameters_search(config_path,
-          model_dir,
-          preds_path):
+                            model_dir,
+                            preds_path):
     pass
 
 
