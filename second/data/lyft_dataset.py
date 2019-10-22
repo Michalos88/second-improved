@@ -89,9 +89,12 @@ class LyftDataset(Dataset):
 
         # -----> if there no sweeps, we have at least one point cloud
         # Get main point cloud
-        points = np.fromfile(
-            str(lidar_path), dtype=np.float32, count=-1).reshape([-1, 5])
-
+        try:
+            points = np.fromfile(
+                str(lidar_path), dtype=np.float32, count=-1).reshape([-1, 5])
+        except ValueError as e:
+            print(info['lidar_path'])
+            raise e
         # Normalize points
         points[:, 3] /= 255
         points[:, 4] = 0
@@ -103,10 +106,14 @@ class LyftDataset(Dataset):
         # Go through n sweeps, if n=0 this will be skipped
         for sweep in info["sweeps"]:
             # Get point clouds starting with main
-            points_sweep = np.fromfile(
-                str(sweep["lidar_path"]), dtype=np.float32,
-                count=-1).reshape([-1, 5])
-
+            try:
+                points_sweep = np.fromfile(
+                    str(sweep["lidar_path"]), dtype=np.float32,
+                    count=-1).reshape([-1, 5])
+            except ValueError as e:
+                print("sweep", sweep[lidar_path])
+                print("main", info[lidar_path])
+                raise e
             # Normalize points
             sweep_ts = sweep["timestamp"] / 1e6
             points_sweep[:, 3] /= 255
