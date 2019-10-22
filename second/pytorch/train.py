@@ -414,35 +414,42 @@ def train(config_path,
                                                 [net, amp_optimizer],
                                                 net.get_global_step())
                     net.eval()
-                    result_path_step = result_path / f"step_{net.get_global_step()}"
+                    result_path_step = (result_path /
+                                        f"step_{net.get_global_step()}")
                     result_path_step.mkdir(parents=True, exist_ok=True)
                     model_logging.log_text("#################################",
                                            global_step)
                     model_logging.log_text("# EVAL", global_step)
                     model_logging.log_text("#################################",
                                            global_step)
-                    model_logging.log_text("Generate output labels...", global_step)
+                    model_logging.log_text("Generate output labels...",
+                                           global_step)
                     t = time.time()
                     detections = []
                     prog_bar = ProgressBar()
                     net.clear_timer()
-                    prog_bar.start((len(eval_dataset) + eval_input_cfg.batch_size - 1)
-                                // eval_input_cfg.batch_size)
+                    prog_bar.start((len(eval_dataset)
+                                    + eval_input_cfg.batch_size - 1)
+                                   // eval_input_cfg.batch_size)
+
                     for example in iter(eval_dataloader):
-                        example = example_convert_to_torch(example, float_dtype)
+                        example = example_convert_to_torch(example,
+                                                           float_dtype)
                         detections += net(example)
                         prog_bar.print_bar()
 
                     sec_per_ex = len(eval_dataset) / (time.time() - t)
                     model_logging.log_text(
-                        f'generate label finished({sec_per_ex:.2f}/s). start eval:',
+                        f'generate label finished({sec_per_ex:.2f}/s). start:',
                         global_step)
                     result_dict = eval_dataset.dataset.evaluation(
                         detections, str(result_path_step))
                     for k, v in result_dict["results"].items():
-                        model_logging.log_text("Evaluation {}".format(k), global_step)
+                        model_logging.log_text("Evaluation {}".format(k),
+                                               global_step)
                         model_logging.log_text(v, global_step)
-                    model_logging.log_metrics(result_dict["detail"], global_step)
+                    model_logging.log_metrics(result_dict["detail"],
+                                              global_step)
                     with open(result_path_step / "result.pkl", 'wb') as f:
                         pickle.dump(detections, f)
                     net.train()
@@ -454,7 +461,8 @@ def train(config_path,
     except Exception as e:
         # print(json.dumps(example["metadata"], indent=2))
         model_logging.log_text(str(e), step)
-        # model_logging.log_text(json.dumps(example["metadata"], indent=2), step)
+        # model_logging.log_text(json.dumps(example["metadata"], indent=2),
+        #                        step)
         torchplus.train.save_models(model_dir, [net, amp_optimizer],
                                     step)
         raise e
@@ -471,9 +479,9 @@ def evaluate(config_path,
              measure_time=False,
              batch_size=None,
              **kwargs):
-    """Don't support pickle_result anymore. if you want to generate kitti label file,
-    please use kitti_anno_to_label_file and convert_detection_to_kitti_annos
-    in second.data.kitti_dataset.
+    """Don't support pickle_result anymore. if you want to generate kitti label
+    file,please use kitti_anno_to_label_file and
+    convert_detection_to_kitti_annos in second.data.kitti_dataset.
     """
     assert len(kwargs) == 0
     model_dir = str(Path(model_dir).resolve())
@@ -564,7 +572,7 @@ def evaluate(config_path,
     print(f'generate label finished({sec_per_example:.2f}/s). start eval:')
     if measure_time:
         print(
-            f"avg example to torch time: {np.mean(prep_example_times) * 1000:.3f} ms"
+          f"avg exp/torch time: {np.mean(prep_example_times) * 1000:.3f} ms"
         )
         print(f"avg prep time: {np.mean(prep_times) * 1000:.3f} ms")
     for name, val in net.get_avg_time_dict().items():
@@ -578,7 +586,12 @@ def evaluate(config_path,
             print("Evaluation {}".format(k))
             print(v)
 
-def helper_tune_target_assigner(config_path, target_rate=None, update_freq=200, update_delta=0.01, num_tune_epoch=5):
+
+def helper_tune_target_assigner(config_path,
+                                target_rate=None,
+                                update_freq=200,
+                                update_delta=0.01,
+                                num_tune_epoch=5):
     """get information of target assign to tune thresholds in anchor generator.
     """
     if isinstance(config_path, str):
@@ -633,7 +646,6 @@ def helper_tune_target_assigner(config_path, target_rate=None, update_freq=200, 
         class_count_tune[c] = 0
         anchor_count_tune[c] = 0
 
-
     step = 0
     classes = target_assigner.classes
     if target_rate is None:
@@ -651,13 +663,22 @@ def helper_tune_target_assigner(config_path, target_rate=None, update_freq=200, 
                 for name, rate in target_rate.items():
                     if class_count_tune[name] > update_freq:
                         # calc rate
-                        current_rate = anchor_count_tune[name] / class_count_tune[name]
+                        current_rate = anchor_count_tune[name]\
+                            / class_count_tune[name]
                         if current_rate > rate:
-                            target_assigner._anchor_generators[classes.index(name)].match_threshold += update_delta
-                            target_assigner._anchor_generators[classes.index(name)].unmatch_threshold += update_delta
+                            target_assigner._anchor_generators[
+                                    classes.index(name)
+                                    ].match_threshold += update_delta
+                            target_assigner._anchor_generators[
+                                    classes.index(name)
+                                    ].unmatch_threshold += update_delta
                         else:
-                            target_assigner._anchor_generators[classes.index(name)].match_threshold -= update_delta
-                            target_assigner._anchor_generators[classes.index(name)].unmatch_threshold -= update_delta
+                            target_assigner._anchor_generators[
+                                    classes.index(name)
+                                    ].match_threshold -= update_delta
+                            target_assigner._anchor_generators[
+                                classes.index(name)
+                                ].unmatch_threshold -= update_delta
                         anchor_count_tune[name] = 0
                         class_count_tune[name] = 0
             step += 1

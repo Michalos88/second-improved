@@ -188,7 +188,6 @@ def create_lyft_infos(root_path, version="train", max_sweeps=10):
                        json_path=root_path+'data',
                        verbose=True)
 
-    # Imports indexes of the splits
     available_vers = ["train", "test"]
 
     # Different train/val/test splits
@@ -365,7 +364,7 @@ def _fill_trainval_infos(lyft,
 
                 # To make sure that broken sample does not end up in sweeps
                 if sd_rec['sample_token'] in splits.blk_listed:
-                    print('here')
+                    print('Sample Skipped: ', sd_rec['sample_token'])
                     continue
 
                 cs_record = lyft.get('calibrated_sensor',
@@ -451,7 +450,7 @@ def _fill_trainval_infos(lyft,
         # Split samples based on scene token
         if sample["scene_token"] in train_scenes:
             train_lyft_infos.append(info)
-        else:
+        elif sample["scene_token"] in val_scenes:
             val_lyft_infos.append(info)
 
     return train_lyft_infos, val_lyft_infos
