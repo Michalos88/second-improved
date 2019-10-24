@@ -217,13 +217,20 @@ class LyftDataset(Dataset):
         with open(res_path, "wb") as f:
             pickle.dump(lyft_annos, f)
 
-        # Evaluate score
-        from second.data.lyft_eval import eval_main
-        mAPs = list()
-        for threshold in np.arange(0.5, 1.0, 0.05):
-            mAPs.append(eval_main(gt_annos, lyft_annos, round(threshold, 3)))
+        print('gt_count:',
+              len(gt_annos), '  ', 'pred_count:', len(lyft_annos))
 
-        print("Final Score = ", np.mean(mAPs))
+        # Evaluate score
+        import ray
+        from second.data.lyft_eval import eval_main
+
+        ray.init()
+        mAPs = [eval_main.remote(gt_annos,
+                                 lyft_annos,
+                                 round(threshold, 3))
+                for threshold in np.arange(0.5, 1.0, 0.05)]
+
+        print("Final Score = ", np.mean(ray.get(mAPs)))
         return None
 
     @property

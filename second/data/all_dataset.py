@@ -3,7 +3,6 @@ from pathlib import Path
 from collections import defaultdict
 
 import numpy as np
-import ray
 
 from second.core import box_np_ops
 from second.data.dataset import get_dataset_class
@@ -147,6 +146,7 @@ def create_groundtruth_database_parallel(dataset_class_name,
                                          bev_only=False,
                                          coors_range=None):
 
+    import ray
     dataset = get_dataset_class(dataset_class_name)(
         info_path=info_path,
         root_path=data_path,
