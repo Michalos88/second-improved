@@ -7,11 +7,43 @@ ONLY support python 3.6+, pytorch 1.0.0+. Tested in Ubuntu 16.04/18.04/Windows 1
 
 If you want to train nuscenes dataset, see [this](NUSCENES-GUIDE.md).
 
+
+## Instalation
+
+### CMake
+```
+wget "https://github.com/Kitware/CMake/releases/download/v3.15.4/cmake-3.15.4.tar.gz"
+tar xf cmake-*
+cd ./cmake*
+./configure
+make
+make install
+export PATH=/usr/local/bin:$PATH
+cmake --version
+```
+
+### Pytorch
+```
+conda create -n env_stereo python=3.6
+conda activate env_stereo
+conda install pytorch=1.0.0 cuda90 -c pytorch
+conda install torchvision -c pytorch
+```
+
+### spconv
+```
+git clone https://github.com/Michalos88/spconv --recursive
+sudo apt-get install libboost-all-dev
+cd spconv/
+python setup.py bdist_wheel
+cd ./dist/
+pip install spconv-1.1-cp36-cp36m-linux_x86_64.whl
+```
 ## News
 
 2019-4-1: SECOND V1.6.0alpha released: New Data API, [NuScenes](https://www.nuscenes.org) support, [PointPillars](https://github.com/nutonomy/second.pytorch) support, fp16 and multi-gpu support.
 
-2019-3-21: SECOND V1.5.1 (minor improvement and bug fix) released! 
+2019-3-21: SECOND V1.5.1 (minor improvement and bug fix) released!
 
 2019-1-20: SECOND V1.5 released! Sparse convolution-based network.
 
@@ -98,7 +130,7 @@ If you don't have Anaconda:
 pip install numba scikit-image scipy pillow
 ```
 
-Follow instructions in [spconv](https://github.com/traveller59/spconv) to install spconv. 
+Follow instructions in [spconv](https://github.com/traveller59/spconv) to install spconv.
 
 If you want to train with fp16 mixed precision (train faster in RTX series, Titan V/RTX and Tesla V100, but I only have 1080Ti), you need to install [apex](https://github.com/NVIDIA/apex).
 
@@ -240,13 +272,13 @@ python ./pytorch/train.py evaluate --config_path=./configs/car.fhd.config --mode
 
 You can download pretrained models in [google drive](https://drive.google.com/open?id=1YOpgRkBgmSAJwMknoXmitEArNitZz63C). The ```car_fhd``` model is corresponding to car.fhd.config.
 
-Note that this pretrained model is trained before a bug of sparse convolution fixed, so the eval result may slightly worse. 
+Note that this pretrained model is trained before a bug of sparse convolution fixed, so the eval result may slightly worse.
 
 ## Docker (Deprecated. I can't push docker due to network problem.)
 
 You can use a prebuilt docker for testing:
 ```
-docker pull scrin/second-pytorch 
+docker pull scrin/second-pytorch
 ```
 Then run:
 ```

@@ -178,6 +178,18 @@ class LyftDatasetD2(LyftDataset):
             self._lyft_infos = self._lyft_infos[::2]
 
 
+@register_dataset
+class LyftDatasetD8(LyftDataset):
+    """Halved Train Set"""
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        # To make sure that we only reduce full train dataset
+        if len(self._lyft_infos) > 17000:
+            self._lyft_infos = list(
+                sorted(self._lyft_infos, key=lambda e: e["timestamp"]))
+            self._lyft_infos = self._lyft_infos[::8]
+
+
 def create_lyft_infos(root_path, version="train", max_sweeps=10):
 
     # TODO: Reorganize folders to /lyft/train/images
