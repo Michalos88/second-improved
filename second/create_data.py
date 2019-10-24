@@ -26,7 +26,7 @@ def nuscenes_data_prep(root_path, version, dataset_name, max_sweeps=10):
                                 root_path, Path(root_path) / name)
 
 
-def lyft_data_prep(root_path, version, dataset_name, max_sweeps=10):
+def lyft_data_prep(root_path, version, dataset_name, max_sweeps=11):
     import second.data.lyft_dataset as lyft_ds
     lyft_ds.create_lyft_infos(root_path, version=version,
                               max_sweeps=max_sweeps)
@@ -34,10 +34,15 @@ def lyft_data_prep(root_path, version, dataset_name, max_sweeps=10):
     name = "infos_train.pkl"
     if version == "test":
         name = "infos_test.pkl"
-    create_groundtruth_database_parallel(dataset_name,
-                                         root_path, Path(root_path) / name)
-    # create_groundtruth_database(dataset_name,
-    #                             root_path, Path(root_path) / name)
+        create_groundtruth_database_parallel(dataset_name,
+                                             root_path, Path(root_path) / name)
+    else:
+        name_val = "infos_val.pkl"
+        lyft_ds.create_ground_truth_annos(root_path,
+                                          Path(root_path) / name_val)
+
+        create_groundtruth_database_parallel(dataset_name,
+                                             root_path, Path(root_path) / name)
 
 
 if __name__ == '__main__':

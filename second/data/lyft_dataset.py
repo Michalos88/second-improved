@@ -190,7 +190,7 @@ class LyftDataset(Dataset):
 
         for det in detections:
             annos = []
-            boxes = _second_det_to_nusc_box(det)
+            boxes = _second_det_to_lyft_box(det)
 
             boxes = _lidar_lyft_box_to_global(
                 token2info[det["metadata"]["token"]], boxes,
@@ -225,6 +225,13 @@ class LyftDataset(Dataset):
 
         print("Final Score = ", np.mean(mAPs))
         return None
+
+    @property
+    def ground_truth_annotations(self):
+
+        with open('val_gt_annos.pkl', 'rb') as f:
+            gt_annos = pickle.load(f)
+        return gt_annos
 
 
 @register_dataset
@@ -334,6 +341,43 @@ def create_lyft_infos(root_path, version="train", max_sweeps=10):
         data["infos"] = val_lyft_infos
         with open(root_path / "infos_val.pkl", 'wb') as f:
             pickle.dump(data, f)
+
+
+def create_ground_truth_annos(root_path, info_path):
+    from lyft_dataset_sdk.lyftdataset import LyftDataset
+
+    root_path = Path(root_path)
+
+    lyft = LyftDataset(data_path=root_path,
+                       json_path=root_path/'data',
+                       verbose=True)
+
+    with open(info_path, 'rb') as f:
+        data = pickle.load(f)
+
+    lyft_infos = data["infos"]
+
+    lyft_infos = list(
+        sorted(lyft_infos, key=lambda e: e["timestamp"]))
+
+    gt_annos = []
+    for info in lyft_infos:
+
+        token = info['token']
+        sample_data = lyft.get('sample', token)
+        for anno_token in sample_data['anns']:
+            object = lyft.get('sample_annotation', anno_token)
+
+            gt_annos.append({
+                "sample_token": token,
+                "name": object['category_name'],
+                "translation": object['translation'],
+                "size": object['size'],
+                "rotation": object['rotation'],
+            })
+
+    with open(root_path/'val_gt_annos.pkl', 'wb') as f:
+        pickle.dump(gt_annos, f)
 
 
 def _get_available_scenes(lyft):
@@ -584,7 +628,7 @@ def get_box_mean(info_path, class_name="car",
     }
 
 
-def _second_det_to_nusc_box(detection):
+def _second_det_to_lyft_box(detection):
     from lyft_dataset_sdk.utils.data_classes import Box
     import pyquaternion
     box3d = detection["box3d_lidar"].detach().cpu().numpy()

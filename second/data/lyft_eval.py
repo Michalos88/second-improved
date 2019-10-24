@@ -8,6 +8,7 @@ def eval_main(gt, predictions, iou_threshold):
 
     class_names = get_class_names(gt)
 
+    print('gt_count:', len(gt), '  ', 'pred_count:', len(predictions))
     average_precisions = get_average_precisions(gt,
                                                 predictions,
                                                 class_names,
