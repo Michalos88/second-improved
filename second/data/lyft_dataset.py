@@ -229,26 +229,22 @@ class LyftDataset(Dataset):
 
 @register_dataset
 class LyftDatasetD2(LyftDataset):
-    """Halved Train Set"""
+    """Reducing DataSet by factor D"""
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
-        # To make sure that we only reduce full train dataset
-        if len(self._lyft_infos) > 17000:
-            self._lyft_infos = list(
-                sorted(self._lyft_infos, key=lambda e: e["timestamp"]))
-            self._lyft_infos = self._lyft_infos[::2]
+        self._lyft_infos = list(
+            sorted(self._lyft_infos, key=lambda e: e["timestamp"]))
+        self._lyft_infos = self._lyft_infos[::2]
 
 
 @register_dataset
 class LyftDatasetD8(LyftDataset):
-    """Halved Train Set"""
+    """Reducing DataSet by factor D"""
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
-        # To make sure that we only reduce full train dataset
-        if len(self._lyft_infos) > 17000:
-            self._lyft_infos = list(
-                sorted(self._lyft_infos, key=lambda e: e["timestamp"]))
-            self._lyft_infos = self._lyft_infos[::8]
+        self._lyft_infos = list(
+            sorted(self._lyft_infos, key=lambda e: e["timestamp"]))
+        self._lyft_infos = self._lyft_infos[::8]
 
 
 def create_lyft_infos(root_path, version="train", max_sweeps=10):
