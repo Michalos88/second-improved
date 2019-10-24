@@ -444,12 +444,13 @@ def train(config_path,
                         global_step)
                     result_dict = eval_dataset.dataset.evaluation(
                         detections, str(result_path_step))
-                    for k, v in result_dict["results"].items():
-                        model_logging.log_text("Evaluation {}".format(k),
-                                               global_step)
-                        model_logging.log_text(v, global_step)
-                    model_logging.log_metrics(result_dict["detail"],
-                                              global_step)
+                    if result_dict is not None:
+                        for k, v in result_dict["results"].items():
+                            model_logging.log_text("Evaluation {}".format(k),
+                                                   global_step)
+                            model_logging.log_text(v, global_step)
+                        model_logging.log_metrics(result_dict["detail"],
+                                                  global_step)
                     with open(result_path_step / "result.pkl", 'wb') as f:
                         pickle.dump(detections, f)
                     net.train()
