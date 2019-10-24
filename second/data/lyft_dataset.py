@@ -220,8 +220,8 @@ class LyftDataset(Dataset):
         # Evaluate score
         from second.data.lyft_eval import eval_main
         mAPs = list()
-        for threshold in range(0.5, 1.0, 0.05):
-            mAPs.append(eval_main(gt_annos, lyft_annos, threshold))
+        for threshold in np.arange(0.5, 1.0, 0.05):
+            mAPs.append(eval_main(gt_annos, lyft_annos, round(threshold, 3)))
 
         print("Final Score = ", np.mean(mAPs))
         return None
