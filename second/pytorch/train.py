@@ -409,6 +409,12 @@ def train(config_path,
                     }
                     model_logging.log_metrics(metrics, global_step)
 
+                if global_step % 500 == 0:
+                    print('Checkpoint! @', global_step)
+                    torchplus.train.save_models(model_dir,
+                                                [net, amp_optimizer],
+                                                net.get_global_step())
+
                 if global_step % steps_per_eval == 0:
                     torchplus.train.save_models(model_dir,
                                                 [net, amp_optimizer],
