@@ -26,7 +26,7 @@ def nuscenes_data_prep(root_path, version, dataset_name, max_sweeps=10):
                                 root_path, Path(root_path) / name)
 
 
-def lyft_data_prep(root_path, version, dataset_name, max_sweeps=11):
+def lyft_data_prep(root_path, version, dataset_name, max_sweeps=10):
     import second.data.lyft_dataset as lyft_ds
     lyft_ds.create_lyft_infos(root_path, version=version,
                               max_sweeps=max_sweeps)
