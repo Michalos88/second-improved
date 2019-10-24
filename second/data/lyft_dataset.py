@@ -229,7 +229,7 @@ class LyftDataset(Dataset):
     @property
     def ground_truth_annotations(self):
 
-        with open(self.root_path/'val_gt_annos.pkl', 'rb') as f:
+        with open(self._root_path/'val_gt_annos.pkl', 'rb') as f:
             gt_annos = pickle.load(f)
         return gt_annos
 
