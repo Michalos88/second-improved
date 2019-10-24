@@ -165,6 +165,67 @@ class LyftDataset(Dataset):
 
         return res
 
+    def evaluation(self, detections, output_dir):
+        """kitti evaluation is very slow, remove it.
+        """
+        # res_kitti = self.evaluation_kitti(detections, output_dir)
+        # Select evalutation prodcedure
+        res = self.evaluation_kaggle(detections, output_dir)
+        return res
+
+    def evaluation_kaggle(self, detections, output_dir):
+
+        # Getting ground truth
+        gt_annos = self.ground_truth_annotations
+        if gt_annos is None:
+            return None
+        lyft_annos = list()
+
+        # Class name mapping
+        mapped_class_names = self._class_names
+
+        token2info = {}
+        for info in self._lyft_infos:
+            token2info[info["token"]] = info
+
+        for det in detections:
+            annos = []
+            boxes = _second_det_to_nusc_box(det)
+
+            boxes = _lidar_lyft_box_to_global(
+                token2info[det["metadata"]["token"]], boxes,
+                mapped_class_names, "lyft_cvpr_2019")
+
+            for i, box in enumerate(boxes):
+                name = mapped_class_names[box.label]
+                lyft_anno = {
+                    "sample_token": det["metadata"]["token"],
+                    "translation": box.center.tolist(),
+                    "size": box.wlh.tolist(),
+                    "rotation": box.orientation.elements.tolist(),
+                    "name": name,
+                    "score": box.score,
+                }
+                annos.append(lyft_anno)
+
+            lyft_annos.extend(annos)
+
+        # TODO: Convert to pandas then csv
+        res_path = Path(output_dir) / "results_lyft.pkl"
+
+        # Save processed data
+        with open(res_path, "wb") as f:
+            pickle.dump(lyft_annos, f)
+
+        # Evaluate score
+        from second.data.lyft_eval import eval_main
+        mAPs = list()
+        for threshold in range(0.5, 1.0, 0.05):
+            mAPs.append(eval_main(gt_annos, lyft_annos, threshold))
+
+        print("Final Score = ", np.mean(mAPs))
+        return None
+
 
 @register_dataset
 class LyftDatasetD2(LyftDataset):
@@ -525,6 +586,58 @@ def get_box_mean(info_path, class_name="car",
         "detail": gt_boxes_list
         # "velocity": gt_vels_list.mean(0).tolist(),
     }
+
+
+def _second_det_to_nusc_box(detection):
+    from lyft_dataset_sdk.utils.data_classes import Box
+    import pyquaternion
+    box3d = detection["box3d_lidar"].detach().cpu().numpy()
+    scores = detection["scores"].detach().cpu().numpy()
+    labels = detection["label_preds"].detach().cpu().numpy()
+    box3d[:, 6] = -box3d[:, 6] - np.pi / 2
+    box_list = []
+    for i in range(box3d.shape[0]):
+        quat = pyquaternion.Quaternion(axis=[0, 0, 1], radians=box3d[i, 6])
+        velocity = (np.nan, np.nan, np.nan)
+        if box3d.shape[1] == 9:
+            velocity = (*box3d[i, 7:9], 0.0)
+            # velo_val = np.linalg.norm(box3d[i, 7:9])
+            # velo_ori = box3d[i, 6]
+            # velocity = (velo_val * np.cos(velo_ori),
+            #             velo_val * np.sin(velo_ori), 0.0)
+        box = Box(
+            box3d[i, :3],
+            box3d[i, 3:6],
+            quat,
+            label=labels[i],
+            score=scores[i],
+            velocity=velocity)
+        box_list.append(box)
+    return box_list
+
+
+def _lidar_lyft_box_to_global(info,
+                              boxes,
+                              classes,
+                              eval_version="lyft_cvpr_2019"):
+    import pyquaternion
+    box_list = []
+    for box in boxes:
+        # Move box to ego vehicle coord system
+        box.rotate(pyquaternion.Quaternion(info['lidar2ego_rotation']))
+        box.translate(np.array(info['lidar2ego_translation']))
+        from second.configs.lyft.eval import eval_detection_configs
+        # filter det in ego.
+        cls_range_map = eval_detection_configs[eval_version]["class_range"]
+        radius = np.linalg.norm(box.center[:2], 2)
+        det_range = cls_range_map[classes[box.label]]
+        if radius > det_range:
+            continue
+        # Move box to global coord system
+        box.rotate(pyquaternion.Quaternion(info['ego2global_rotation']))
+        box.translate(np.array(info['ego2global_translation']))
+        box_list.append(box)
+    return box_list
 
 
 if __name__ == "__main__":
