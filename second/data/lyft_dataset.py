@@ -166,10 +166,8 @@ class LyftDataset(Dataset):
         return res
 
     def evaluation(self, detections, output_dir):
-        """kitti evaluation is very slow, remove it.
+        """Select evalutation prodcedure
         """
-        # res_kitti = self.evaluation_kitti(detections, output_dir)
-        # Select evalutation prodcedure
         res = self.evaluation_kaggle(detections, output_dir)
         return res
 
@@ -261,7 +259,10 @@ class LyftDatasetD8(LyftDataset):
         self._lyft_infos = self._lyft_infos[::8]
 
 
-def create_lyft_infos(root_path, version="train", max_sweeps=10):
+def create_lyft_infos(root_path,
+                      version="train",
+                      max_sweeps=10,
+                      names_upsample=False):
 
     # TODO: Reorganize folders to /lyft/train/images
 
@@ -317,6 +318,9 @@ def create_lyft_infos(root_path, version="train", max_sweeps=10):
     # Generating training infos and metadata
     train_lyft_infos, val_lyft_infos = _fill_trainval_infos(
         lyft, train_scenes, val_scenes, test, max_sweeps=max_sweeps)
+
+    if names_upsample:
+        train_lyft_infos = _names_upsample(train_lyft_infos)
 
     metadata = {
         "version": version,
@@ -633,6 +637,32 @@ def get_box_mean(info_path, class_name="car",
         "detail": gt_boxes_list
         # "velocity": gt_vels_list.mean(0).tolist(),
     }
+
+
+def _names_upsample(db_infos):
+    from collections import defaultdict
+    from random import choice
+
+    name_samples = defaultdict(list)
+    aggr_name_sample_count = 0
+
+    print('Upsampling...')
+    for idx in prog_bar(range(len(db_infos))):
+        unique_names = set(db_infos['gt_names'])
+        aggr_name_sample_count += len(unique_names)
+        for name in unique_names:
+            name_samples['name'].append(idx)
+
+    sampling_size = aggr_name_sample_count // len(name_samples)
+
+    upsampled_db_infos = list()
+
+    for name in name_samples:
+        indexes = name_samples[name]
+        for _ in range(sampling_size):
+            upsampled_db_infos.append(db_infos[choice(indexes)])
+
+    return upsampled_db_infos
 
 
 def _second_det_to_lyft_box(detection):
