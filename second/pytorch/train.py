@@ -409,6 +409,9 @@ def train(config_path,
                     }
                     model_logging.log_metrics(metrics, global_step)
 
+                ######################
+                # Evaluation
+                ######################
                 if global_step % steps_per_eval == 0:
                     torchplus.train.save_models(model_dir,
                                                 [net, amp_optimizer],
@@ -433,9 +436,19 @@ def train(config_path,
                                    // eval_input_cfg.batch_size)
 
                     for example in iter(eval_dataloader):
-                        example = example_convert_to_torch(example,
-                                                           float_dtype)
-                        detections += net(example)
+                        try:
+                            print('here')
+                            example = example_convert_to_torch(example,
+                                                               float_dtype)
+                        except Exception as e:
+                            print("Example Convert Failed")
+                            raise e
+                        try:
+                            print('here2')
+                            detections += net(example)
+                        except Exception as e:
+                            print("Network Failed")
+                            raise e
                         prog_bar.print_bar()
 
                     sec_per_ex = len(eval_dataset) / (time.time() - t)
