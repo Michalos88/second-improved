@@ -448,14 +448,14 @@ def train(config_path,
                     model_logging.log_text(
                         f'generate label finished({sec_per_ex:.2f}/s). start:',
                         global_step)
-                    result_dict = eval_dataset.dataset.evaluation(
+                    eval_dataset.dataset.evaluation(
                         detections, str(result_path_step))
-                    for k, v in result_dict["results"].items():
-                        model_logging.log_text("Evaluation {}".format(k),
-                                               global_step)
-                        model_logging.log_text(v, global_step)
-                    model_logging.log_metrics(result_dict["detail"],
-                                              global_step)
+                    # for k, v in result_dict["results"].items():
+                    #     model_logging.log_text("Evaluation {}".format(k),
+                    #                            global_step)
+                    #     model_logging.log_text(v, global_step)
+                    # model_logging.log_metrics(result_dict["detail"],
+                    #                           global_step)
                     with open(result_path_step / "result.pkl", 'wb') as f:
                         pickle.dump(detections, f)
                     net.train()
