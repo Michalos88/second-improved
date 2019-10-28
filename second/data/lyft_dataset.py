@@ -648,7 +648,7 @@ def _names_upsample(db_infos):
 
     print('Upsampling...')
     for idx in prog_bar(range(len(db_infos))):
-        unique_names = set(db_infos['gt_names'])
+        unique_names = set(db_infos[idx]['gt_names'])
         aggr_name_sample_count += len(unique_names)
         for name in unique_names:
             name_samples['name'].append(idx)

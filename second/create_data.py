@@ -32,7 +32,7 @@ def lyft_data_prep(root_path, version, dataset_name, max_sweeps=0,
     import second.data.lyft_dataset as lyft_ds
     lyft_ds.create_lyft_infos(root_path, version=version,
                               max_sweeps=max_sweeps,
-                              names_upsample=False)
+                              names_upsample=names_upsample)
 
     name = "infos_train.pkl"
     if version == "test":
