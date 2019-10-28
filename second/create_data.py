@@ -26,10 +26,13 @@ def nuscenes_data_prep(root_path, version, dataset_name, max_sweeps=10):
                                 root_path, Path(root_path) / name)
 
 
-def lyft_data_prep(root_path, version, dataset_name, max_sweeps=10):
+def lyft_data_prep(root_path, version, dataset_name, max_sweeps=0,
+                   names_upsample=False):
+
     import second.data.lyft_dataset as lyft_ds
     lyft_ds.create_lyft_infos(root_path, version=version,
-                              max_sweeps=max_sweeps)
+                              max_sweeps=max_sweeps,
+                              names_upsample=False)
 
     name = "infos_train.pkl"
     if version == "test":
