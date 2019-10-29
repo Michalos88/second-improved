@@ -14,7 +14,7 @@ from second.data.dataset import Dataset, register_dataset
 # from second.utils.eval import get_coco_eval_result, get_official_eval_result
 from second.utils.progress_bar import progress_bar_iter as prog_bar
 from second.data import lyft_splits as splits
-
+from second.utils.progress_bar import ProgressBar
 
 @register_dataset
 class LyftDataset(Dataset):
@@ -188,6 +188,9 @@ class LyftDataset(Dataset):
         for info in self._lyft_infos:
             token2info[info["token"]] = info
 
+        print("Post-processing labes...")
+        bar = ProgressBar()
+        bar.start(len(detections))
         for det in detections:
             annos = []
             boxes = _second_det_to_lyft_box(det)
@@ -209,9 +212,10 @@ class LyftDataset(Dataset):
                 annos.append(lyft_anno)
 
             lyft_annos.extend(annos)
+            prog_bar.print_bar()
 
         # TODO: Convert to pandas then csv
-        res_path = Path(output_dir) / "results_lyft.pkl"
+        res_path = Path(output_dir) / "results_postproc.pkl"
 
         # Save processed data
         with open(res_path, "wb") as f:
@@ -431,9 +435,9 @@ def _fill_trainval_infos(lyft,
     for sample in prog_bar(lyft.sample):
 
         # Check if sample comes from either train or val sets
-        if sample["scene_token"] not in train_scenes and\
-                sample["scene_token"] not in val_scenes and\
-                sample['token'] not in splits.blk_listed:
+        if (sample["scene_token"] not in train_scenes and\
+                sample["scene_token"] not in val_scenes) or\
+                sample['token'] in splits.blk_listed:
             continue
 
         # Getting sample data for lidar and front camera
@@ -568,10 +572,11 @@ def _fill_trainval_infos(lyft,
                 [a["num_radar_pts"] for a in annotations])
 
         # Split samples based on scene token
-        if sample["scene_token"] in train_scenes:
-            train_lyft_infos.append(info)
-        elif sample["scene_token"] in val_scenes:
-            val_lyft_infos.append(info)
+        if sample['token'] not in splits.blk_listed:.
+            if sample["scene_token"] in train_scenes:
+                train_lyft_infos.append(info)
+            elif sample["scene_token"] in val_scenes:
+                val_lyft_infos.append(info)
 
     return train_lyft_infos, val_lyft_infos
 

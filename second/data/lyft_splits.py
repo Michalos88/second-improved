@@ -1,9 +1,10 @@
 """Train, Val Test Scene Indexes
 * Generated in the notebook
 """
-# Some of the samples break all of the piplines
+# Some of the samples break the piplines
 blk_listed = [
-    '9cb04b1a4d476fd0782431764c7b55e91c6dbcbc6197c3dab3e044f13d058011']
+    '9cb04b1a4d476fd0782431764c7b55e91c6dbcbc6197c3dab3e044f13d058011',
+    '1a7ab43cf34d362387cf6f12e58741113ac02cedbb7fa82314ec23318c6caaee']
 
 train = ['host-a005-lidar0-1231201437298603426-1231201462198815506',
          'host-a011-lidar0-1232401360198078026-1232401385098379106',
