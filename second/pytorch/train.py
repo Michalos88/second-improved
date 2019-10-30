@@ -3,6 +3,7 @@ from pathlib import Path
 import pickle
 import time
 import re
+from copy import deepcopy
 import fire
 import numpy as np
 import torch
@@ -415,6 +416,9 @@ def train(config_path,
                                                 [net, amp_optimizer],
                                                 net.get_global_step())
 
+                ######################
+                # Evaluation
+                ######################
                 if global_step % steps_per_eval == 0:
                     torchplus.train.save_models(model_dir,
                                                 [net, amp_optimizer],
@@ -438,9 +442,9 @@ def train(config_path,
                                     + eval_input_cfg.batch_size - 1)
                                    // eval_input_cfg.batch_size)
 
+
                     for example in iter(eval_dataloader):
-                        example = example_convert_to_torch(example,
-                                                           float_dtype)
+                        example = example_convert_to_torch(example, float_dtype)
                         detections += net(example)
                         prog_bar.print_bar()
 
@@ -535,6 +539,7 @@ def evaluate(config_path,
         training=False,
         voxel_generator=voxel_generator,
         target_assigner=target_assigner)
+
     eval_dataloader = torch.utils.data.DataLoader(
         eval_dataset,
         batch_size=batch_size,
@@ -543,47 +548,26 @@ def evaluate(config_path,
         pin_memory=False,
         collate_fn=merge_second_batch)
 
+    net.eval()
+    result_path_step = result_path / f"step_{net.get_global_step()}"
+    result_path_step.mkdir(parents=True, exist_ok=True)
+    # t = time.time()
+    detections = []
+    print("Generate output labels...")
+    bar = ProgressBar()
+    bar.start((len(eval_dataset) + batch_size - 1) // batch_size)
+
     if train_cfg.enable_mixed_precision:
         float_dtype = torch.float16
     else:
         float_dtype = torch.float32
 
-    net.eval()
-    result_path_step = result_path / f"step_{net.get_global_step()}"
-    result_path_step.mkdir(parents=True, exist_ok=True)
-    t = time.time()
-    detections = []
-    print("Generate output labels...")
-    bar = ProgressBar()
-    bar.start((len(eval_dataset) + batch_size - 1) // batch_size)
-    prep_example_times = []
-    prep_times = []
-    t2 = time.time()
-
     for example in iter(eval_dataloader):
-        if measure_time:
-            prep_times.append(time.time() - t2)
-            torch.cuda.synchronize()
-            t1 = time.time()
         example = example_convert_to_torch(example, float_dtype)
-        if measure_time:
-            torch.cuda.synchronize()
-            prep_example_times.append(time.time() - t1)
         with torch.no_grad():
             detections += net(example)
         bar.print_bar()
-        if measure_time:
-            t2 = time.time()
 
-    sec_per_example = len(eval_dataset) / (time.time() - t)
-    print(f'generate label finished({sec_per_example:.2f}/s). start eval:')
-    if measure_time:
-        print(
-          f"avg exp/torch time: {np.mean(prep_example_times) * 1000:.3f} ms"
-        )
-        print(f"avg prep time: {np.mean(prep_times) * 1000:.3f} ms")
-    for name, val in net.get_avg_time_dict().items():
-        print(f"avg {name} time = {val * 1000:.3f} ms")
     with open(result_path_step / "result.pkl", 'wb') as f:
         pickle.dump(detections, f)
     result_dict = eval_dataset.dataset.evaluation(detections,
@@ -601,6 +585,8 @@ def helper_tune_target_assigner(config_path,
                                 num_tune_epoch=5):
     """get information of target assign to tune thresholds in anchor generator.
     """
+
+    # Initialize pipeline
     if isinstance(config_path, str):
         # directly provide a config object. this usually used
         # when you want to train with several different parameters in
@@ -655,6 +641,8 @@ def helper_tune_target_assigner(config_path,
 
     step = 0
     classes = target_assigner.classes
+
+    # If target_rate is None, skip the for loop below
     if target_rate is None:
         num_tune_epoch = 0
     for epoch in range(num_tune_epoch):
@@ -689,6 +677,7 @@ def helper_tune_target_assigner(config_path,
                         anchor_count_tune[name] = 0
                         class_count_tune[name] = 0
             step += 1
+
     for c in target_assigner.classes:
         class_count[c] = 0
         anchor_count[c] = 0
@@ -710,6 +699,7 @@ def helper_tune_target_assigner(config_path,
 
     print(json.dumps(class_count, indent=2))
     print(json.dumps(anchor_count, indent=2))
+
     if target_rate is not None:
         for ag in target_assigner._anchor_generators:
             if ag.class_name in target_rate:

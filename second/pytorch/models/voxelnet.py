@@ -43,16 +43,19 @@ def register_voxelnet(cls, name=None):
     REGISTERED_NETWORK_CLASSES[name] = cls
     return cls
 
+
 def get_voxelnet_class(name):
     global REGISTERED_NETWORK_CLASSES
     assert name in REGISTERED_NETWORK_CLASSES, f"available class: {REGISTERED_NETWORK_CLASSES}"
     return REGISTERED_NETWORK_CLASSES[name]
+
 
 class LossNormType(Enum):
     NormByNumPositives = "norm_by_num_positives"
     NormByNumExamples = "norm_by_num_examples"
     NormByNumPosNeg = "norm_by_num_pos_neg"
     DontNorm = "dont_norm"
+
 
 @register_voxelnet
 class VoxelNet(nn.Module):
@@ -315,7 +318,7 @@ class VoxelNet(nn.Module):
         """this function is used for subclass.
         you can add custom network architecture by subclass VoxelNet class
         and override this function.
-        Returns: 
+        Returns:
             preds_dict: {
                 box_preds: ...
                 cls_preds: ...
@@ -383,7 +386,7 @@ class VoxelNet(nn.Module):
                 scores: [N]
                 label_preds: [N]
                 metadata: meta-data which contains dataset-specific information.
-                    for kitti, it contains image idx (label idx), 
+                    for kitti, it contains image idx (label idx),
                     for nuscenes, sample_token is saved in it.
             }
         """
