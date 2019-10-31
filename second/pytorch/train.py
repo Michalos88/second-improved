@@ -562,7 +562,12 @@ def evaluate(config_path,
     else:
         float_dtype = torch.float32
 
+    counter = 0
     for example in iter(eval_dataloader):
+        if counter == 3754:
+            counter+=1
+            bar.print_bar()
+            continue
         example = example_convert_to_torch(example, float_dtype)
         with torch.no_grad():
             detections += net(example)
