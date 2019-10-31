@@ -315,7 +315,7 @@ class VoxelNet(nn.Module):
         """this function is used for subclass.
         you can add custom network architecture by subclass VoxelNet class
         and override this function.
-        Returns: 
+        Returns:
             preds_dict: {
                 box_preds: ...
                 cls_preds: ...
@@ -383,7 +383,7 @@ class VoxelNet(nn.Module):
                 scores: [N]
                 label_preds: [N]
                 metadata: meta-data which contains dataset-specific information.
-                    for kitti, it contains image idx (label idx), 
+                    for kitti, it contains image idx (label idx),
                     for nuscenes, sample_token is saved in it.
             }
         """

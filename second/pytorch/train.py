@@ -3,6 +3,7 @@ from pathlib import Path
 import pickle
 import time
 import re
+
 import fire
 import numpy as np
 import torch
@@ -324,18 +325,20 @@ def train(config_path,
     amp_optimizer.zero_grad()
     step_times = []
     step = start_step
+    import pdb
+    pdb.set_trace()
     try:
         while True:
             if clear_metrics_every_epoch:
                 net.clear_metrics()
             for example in dataloader:
+
                 lr_scheduler.step(net.get_global_step())
                 time_metrics = example["metrics"]
                 example.pop("metrics")
                 example_torch = example_convert_to_torch(example, float_dtype)
 
                 batch_size = example["anchors"].shape[0]
-
                 ret_dict = net_parallel(example_torch)
                 cls_preds = ret_dict["cls_preds"]
                 loss = ret_dict["loss"].mean()

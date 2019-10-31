@@ -199,6 +199,7 @@ class RPN(nn.Module):
 
         return ret_dict
 
+
 class RPNNoHeadBase(nn.Module):
     def __init__(self,
                  use_norm=True,
@@ -312,6 +313,8 @@ class RPNNoHeadBase(nn.Module):
         raise NotImplementedError
 
     def forward(self, x):
+        import pdb
+        pdb.set_trace()
         ups = []
         stage_outputs = []
         for i in range(len(self.blocks)):

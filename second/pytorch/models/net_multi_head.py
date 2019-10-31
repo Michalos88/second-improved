@@ -1,3 +1,4 @@
+import pdb
 import numpy as np
 import torch
 from torch import nn
@@ -188,15 +189,18 @@ class VoxelNetLyftMultiHead(VoxelNet):
         super().__init__(*args, **kw)
         assert self._num_class == 9
         assert isinstance(self.rpn, rpn.RPNNoHead)
-        self.small_classes = ["pedestrian", "animal", "bicycle", "motorcycle"]
-        self.large_classes = ["car", "truck", "other_vehicle", "bus",
-                              "emergency_vehicle"]
+        pdb.set_trace()
+
+        self.small_classes = ["bicycle", "motorcycle", "pedestrian", "animal"]
+        self.large_classes = ["bus", "car", "emergency_vehicle",
+                              "other_vehicle", "truck"]
         small_num_anchor_loc = sum([
             self.target_assigner.num_anchors_per_location_class(c)
             for c in self.small_classes])
         large_num_anchor_loc = sum([
             self.target_assigner.num_anchors_per_location_class(c)
             for c in self.large_classes])
+
         self.small_head = SmallObjectHead(
             num_filters=self.rpn._num_filters[0],
             num_class=self._num_class,
