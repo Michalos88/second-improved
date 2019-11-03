@@ -241,7 +241,7 @@ class LyftDataset(Dataset):
 
         from lyft_dataset_sdk.lyftdataset import LyftDataset
         lyft = LyftDataset(data_path=self._root_path,
-                           json_path=self._root_path+'data',
+                           json_path=self._root_path/'data',
                            verbose=True)
         gt_annos = list()
         for info in self._lyft_infos:
