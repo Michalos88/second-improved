@@ -554,8 +554,6 @@ def evaluate(config_path,
     # t = time.time()
     detections = []
     print("Generate output labels...")
-    bar = ProgressBar()
-    bar.start((len(eval_dataset) + batch_size - 1) // batch_size)
 
     if train_cfg.enable_mixed_precision:
         float_dtype = torch.float16
@@ -563,15 +561,33 @@ def evaluate(config_path,
         float_dtype = torch.float32
 
     counter = 0
+    max_prev_step = 0
+    if (result_path_step/"dets_0.pkl").exists():
+        for file in result_path_step.iterdir():
+            if file.name[0:len("dets")] == "dets":
+                step = int(file.name[len("dets_"):-len('.pkl')])
+                max_prev_step = max(step, max_prev_step)
+
+        print("Resuming at", max_prev_step)
+        name = "dets_"+str(max_prev_step)+".pkl"
+        with open(result_path_step / name, 'rb') as f:
+            detections = pickle.load(f)
+
     for example in iter(eval_dataloader):
-        if counter == 3754:
-            counter+=1
-            bar.print_bar()
+        print(counter)
+        if counter < max_prev_step or counter == 3005:
+            counter += 1
             continue
+
+        if counter % 100 == 0:
+            name = "dets_"+str(counter)+".pkl"
+            with open(result_path_step / name, 'wb') as f:
+                pickle.dump(detections, f)
+            counter += 1
         example = example_convert_to_torch(example, float_dtype)
         with torch.no_grad():
             detections += net(example)
-        bar.print_bar()
+        counter += 1
 
     with open(result_path_step / "result.pkl", 'wb') as f:
         pickle.dump(detections, f)

@@ -174,10 +174,10 @@ class LyftDataset(Dataset):
 
     def evaluation_kaggle(self, detections, output_dir):
 
-        # Getting ground truth
-        gt_annos = self.ground_truth_annotations
-        if gt_annos is None:
-            return None
+        # # Getting ground truth
+        # gt_annos = self.ground_truth_annotations
+        # if gt_annos is None:
+        #     return None
         lyft_annos = list()
 
         # Class name mapping
@@ -220,20 +220,20 @@ class LyftDataset(Dataset):
         with open(res_path, "wb") as f:
             pickle.dump(lyft_annos, f)
 
-        print('gt_count:',
-              len(gt_annos), '  ', 'pred_count:', len(lyft_annos))
-
-        # Evaluate score
-        import ray
-        from second.data.lyft_eval import eval_main
-
-        ray.init()
-        mAPs = [eval_main.remote(gt_annos,
-                                 lyft_annos,
-                                 round(threshold, 3))
-                for threshold in np.arange(0.5, 1.0, 0.05)]
-
-        print("Final Score = ", np.mean(ray.get(mAPs)))
+        # print('gt_count:',
+        #       len(gt_annos), '  ', 'pred_count:', len(lyft_annos))
+        #
+        # # Evaluate score
+        # import ray
+        # from second.data.lyft_eval import eval_main
+        #
+        # ray.init()
+        # mAPs = [eval_main.remote(gt_annos,
+        #                          lyft_annos,
+        #                          round(threshold, 3))
+        #         for threshold in np.arange(0.5, 1.0, 0.05)]
+        #
+        # print("Final Score = ", np.mean(ray.get(mAPs)))
         return None
 
     @property
@@ -241,7 +241,7 @@ class LyftDataset(Dataset):
 
         from lyft_dataset_sdk.lyftdataset import LyftDataset
         lyft = LyftDataset(data_path=self._root_path,
-                           json_path=self._root_path+'data',
+                           json_path=self._root_path/'data',
                            verbose=True)
         gt_annos = list()
         for info in self._lyft_infos:
