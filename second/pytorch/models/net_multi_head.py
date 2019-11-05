@@ -187,9 +187,7 @@ class DefaultHead(nn.Module):
 class VoxelNetLyftMultiHead(VoxelNet):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
-        assert self._num_class == 9
-        assert isinstance(self.rpn, rpn.RPNNoHead)
-        pdb.set_trace()
+        # pdb.set_trace()
 
         self.small_classes = ["bicycle", "motorcycle", "pedestrian", "animal"]
         self.large_classes = ["bus", "car", "emergency_vehicle",

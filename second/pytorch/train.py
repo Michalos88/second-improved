@@ -325,8 +325,8 @@ def train(config_path,
     amp_optimizer.zero_grad()
     step_times = []
     step = start_step
-    import pdb
-    pdb.set_trace()
+    # import pdb
+    # pdb.set_trace()
     try:
         while True:
             if clear_metrics_every_epoch:

@@ -313,8 +313,8 @@ class RPNNoHeadBase(nn.Module):
         raise NotImplementedError
 
     def forward(self, x):
-        import pdb
-        pdb.set_trace()
+        # import pdb
+        # pdb.set_trace()
         ups = []
         stage_outputs = []
         for i in range(len(self.blocks)):
