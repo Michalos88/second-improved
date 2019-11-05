@@ -1,1 +1,1 @@
-python ./second/pytorch/train.py train --config_path=./second/configs/lyft/v1.5.config --model_dir=./model_dir
+python ./second/pytorch/train.py train --config_path=./second/configs/lyft/v2.1.config --model_dir=./model_dir --pretrained_path=../pretrained_models_v1.5/pp_model_for_nuscenes_pretrain/voxelnet-296960.tckpt
