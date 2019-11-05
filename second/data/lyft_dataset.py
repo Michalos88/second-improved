@@ -14,6 +14,7 @@ from second.data.dataset import Dataset, register_dataset
 # from second.utils.eval import get_coco_eval_result, get_official_eval_result
 from second.utils.progress_bar import progress_bar_iter as prog_bar
 from second.data import lyft_splits as splits
+from second.utils.progress_bar import ProgressBar
 
 
 @register_dataset
@@ -186,6 +187,9 @@ class LyftDataset(Dataset):
         for info in self._lyft_infos:
             token2info[info["token"]] = info
 
+        print("Post-processing labes...")
+        bar = ProgressBar()
+        bar.start(len(detections))
         for det in detections:
             annos = []
             boxes = _second_det_to_lyft_box(det)
@@ -207,9 +211,10 @@ class LyftDataset(Dataset):
                 annos.append(lyft_anno)
 
             lyft_annos.extend(annos)
+            bar.print_bar()
 
         # TODO: Convert to pandas then csv
-        res_path = Path(output_dir) / "results_lyft.pkl"
+        res_path = Path(output_dir) / "results_postproc.pkl"
 
         # Save processed data
         with open(res_path, "wb") as f:
@@ -234,8 +239,39 @@ class LyftDataset(Dataset):
     @property
     def ground_truth_annotations(self):
 
-        with open(self._root_path/'val_gt_annos.pkl', 'rb') as f:
-            gt_annos = pickle.load(f)
+        from lyft_dataset_sdk.lyftdataset import LyftDataset
+        lyft = LyftDataset(data_path=self._root_path,
+                           json_path=self._root_path/'data',
+                           verbose=True)
+        gt_annos = list()
+        for info in self._lyft_infos:
+
+            token = info['token']
+            sample_data = lyft.get('sample', token)
+            for anno_token in sample_data['anns']:
+                object = lyft.get('sample_annotation', anno_token)
+
+                gt_annos.append({
+                    "sample_token": token,
+                    "name": object['category_name'],
+                    "translation": object['translation'],
+                    "size": object['size'],
+                    "rotation": object['rotation'],
+                })
+        # # in case of reduced val set
+        # if len(self._lyft_infos) < 5000:
+        #     sample_tokens = set()
+        #     total_annos = 0
+        #     for sample in self._lyft_infos:
+        #         sample_tokens.add(sample['token'])
+        #         total_annos += len(sample['gt_names'])
+        #
+        #     new_gt_annos = list()
+        #     for i in range(len(gt_annos)):
+        #         if gt_annos[i]['sample_token'] in sample_tokens:
+        #             new_gt_annos.append(gt_annos[i])
+        #     assert len(new_gt_annos) == total_annos
+        #     return new_gt_annos
         return gt_annos
 
 
@@ -353,44 +389,6 @@ def create_lyft_infos(root_path,
         with open(root_path / "infos_val.pkl", 'wb') as f:
             pickle.dump(data, f)
 
-
-def create_ground_truth_annos(root_path, info_path):
-    from lyft_dataset_sdk.lyftdataset import LyftDataset
-
-    root_path = Path(root_path)
-
-    lyft = LyftDataset(data_path=root_path,
-                       json_path=root_path/'data',
-                       verbose=True)
-
-    with open(info_path, 'rb') as f:
-        data = pickle.load(f)
-
-    lyft_infos = data["infos"]
-
-    lyft_infos = list(
-        sorted(lyft_infos, key=lambda e: e["timestamp"]))
-
-    gt_annos = []
-    for info in lyft_infos:
-
-        token = info['token']
-        sample_data = lyft.get('sample', token)
-        for anno_token in sample_data['anns']:
-            object = lyft.get('sample_annotation', anno_token)
-
-            gt_annos.append({
-                "sample_token": token,
-                "name": object['category_name'],
-                "translation": object['translation'],
-                "size": object['size'],
-                "rotation": object['rotation'],
-            })
-
-    with open(root_path/'val_gt_annos.pkl', 'wb') as f:
-        pickle.dump(gt_annos, f)
-
-
 def _get_available_scenes(lyft):
     available_scenes = []
     print("total scene num:", len(lyft.scene))
@@ -435,9 +433,9 @@ def _fill_trainval_infos(lyft,
     for sample in prog_bar(lyft.sample):
 
         # Check if sample comes from either train or val sets
-        if sample["scene_token"] not in train_scenes and\
-                sample["scene_token"] not in val_scenes and\
-                sample['token'] not in splits.blk_listed:
+        if (sample["scene_token"] not in train_scenes and
+                sample["scene_token"] not in val_scenes) or\
+                sample['token'] in splits.blk_listed:
             continue
 
         # Getting sample data for lidar and front camera
@@ -572,10 +570,11 @@ def _fill_trainval_infos(lyft,
                 [a["num_radar_pts"] for a in annotations])
 
         # Split samples based on scene token
-        if sample["scene_token"] in train_scenes:
-            train_lyft_infos.append(info)
-        elif sample["scene_token"] in val_scenes:
-            val_lyft_infos.append(info)
+        if sample['token'] not in splits.blk_listed:
+            if sample["scene_token"] in train_scenes:
+                train_lyft_infos.append(info)
+            elif sample["scene_token"] in val_scenes:
+                val_lyft_infos.append(info)
 
     return train_lyft_infos, val_lyft_infos
 

@@ -19,12 +19,15 @@ from second.protos import second_pb2
 from second.pytorch.builder import losses_builder
 from second.pytorch.models.voxelnet import LossNormType, get_voxelnet_class
 
+
 def build(model_cfg: second_pb2.VoxelNet, voxel_generator,
           target_assigner, measure_time=False):
     """build second pytorch instance.
     """
     if not isinstance(model_cfg, second_pb2.VoxelNet):
         raise ValueError('model_cfg not of type ' 'second_pb2.VoxelNet.')
+
+    # Retrieve model parameters
     vfe_num_filters = list(model_cfg.voxel_feature_extractor.num_filters)
     vfe_with_distance = model_cfg.voxel_feature_extractor.with_distance
     grid_size = voxel_generator.grid_size
@@ -33,35 +36,45 @@ def build(model_cfg: second_pb2.VoxelNet, voxel_generator,
     num_class = len(classes_cfg)
     use_mcnms = [c.use_multi_class_nms for c in classes_cfg]
     use_rotate_nms = [c.use_rotate_nms for c in classes_cfg]
+
     if len(model_cfg.target_assigner.nms_pre_max_sizes) != 0:
         nms_pre_max_sizes = list(model_cfg.target_assigner.nms_pre_max_sizes)
         assert len(nms_pre_max_sizes) == num_class
     else:
         nms_pre_max_sizes = [c.nms_pre_max_size for c in classes_cfg]
+
     if len(model_cfg.target_assigner.nms_post_max_sizes) != 0:
         nms_post_max_sizes = list(model_cfg.target_assigner.nms_post_max_sizes)
         assert len(nms_post_max_sizes) == num_class
     else:
         nms_post_max_sizes = [c.nms_post_max_size for c in classes_cfg]
+
     if len(model_cfg.target_assigner.nms_score_thresholds) != 0:
-        nms_score_thresholds = list(model_cfg.target_assigner.nms_score_thresholds)
+        nms_score_thresholds = list(
+                model_cfg.target_assigner.nms_score_thresholds)
         assert len(nms_score_thresholds) == num_class
     else:
         nms_score_thresholds = [c.nms_score_threshold for c in classes_cfg]
+
     if len(model_cfg.target_assigner.nms_iou_thresholds) != 0:
         nms_iou_thresholds = list(model_cfg.target_assigner.nms_iou_thresholds)
         assert len(nms_iou_thresholds) == num_class
     else:
         nms_iou_thresholds = [c.nms_iou_threshold for c in classes_cfg]
+
     assert all(use_mcnms) or all([not b for b in use_mcnms]), "not implemented"
-    assert all(use_rotate_nms) or all([not b for b in use_rotate_nms]), "not implemented"
+    assert all(use_rotate_nms) or all([not b for b in use_rotate_nms]),\
+        "not implemented"
+
     if all([not b for b in use_mcnms]):
         assert all([e == nms_pre_max_sizes[0] for e in nms_pre_max_sizes])
         assert all([e == nms_post_max_sizes[0] for e in nms_post_max_sizes])
-        assert all([e == nms_score_thresholds[0] for e in nms_score_thresholds])
+        assert all([e == nms_score_thresholds[0]
+                   for e in nms_score_thresholds])
         assert all([e == nms_iou_thresholds[0] for e in nms_iou_thresholds])
-    
+
     num_input_features = model_cfg.num_point_features
+
     loss_norm_type_dict = {
         0: LossNormType.NormByNumExamples,
         1: LossNormType.NormByNumPositives,

@@ -43,16 +43,19 @@ def register_voxelnet(cls, name=None):
     REGISTERED_NETWORK_CLASSES[name] = cls
     return cls
 
+
 def get_voxelnet_class(name):
     global REGISTERED_NETWORK_CLASSES
     assert name in REGISTERED_NETWORK_CLASSES, f"available class: {REGISTERED_NETWORK_CLASSES}"
     return REGISTERED_NETWORK_CLASSES[name]
+
 
 class LossNormType(Enum):
     NormByNumPositives = "norm_by_num_positives"
     NormByNumExamples = "norm_by_num_examples"
     NormByNumPosNeg = "norm_by_num_pos_neg"
     DontNorm = "dont_norm"
+
 
 @register_voxelnet
 class VoxelNet(nn.Module):

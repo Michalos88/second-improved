@@ -80,7 +80,7 @@ def build(optimizer_config, net, name=None, mixed=False, loss_scale=512.0):
     # optimizer = OptimWrapper(optimizer, true_wd=optimizer_config.fixed_weight_decay, wd=config.weight_decay)
     optimizer = OptimWrapper.create(
         optimizer_func,
-        3e-3,
+        config.learning_rate.one_cycle.lr_max,
         get_layer_groups(net),
         wd=config.weight_decay,
         true_wd=optimizer_config.fixed_weight_decay,
