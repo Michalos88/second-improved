@@ -3,7 +3,6 @@ from pathlib import Path
 import pickle
 import time
 import re
-from copy import deepcopy
 import fire
 import numpy as np
 import torch
@@ -442,9 +441,9 @@ def train(config_path,
                                     + eval_input_cfg.batch_size - 1)
                                    // eval_input_cfg.batch_size)
 
-
                     for example in iter(eval_dataloader):
-                        example = example_convert_to_torch(example, float_dtype)
+                        example = example_convert_to_torch(
+                                example, float_dtype)
                         detections += net(example)
                         prog_bar.print_bar()
 
