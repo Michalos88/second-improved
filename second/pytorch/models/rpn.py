@@ -326,10 +326,16 @@ class RPNNoHeadBase(nn.Module):
         if len(ups) > 0:
             x = torch.cat(ups, dim=1)
         res = {}
+
+        # Save ouput of every upsamling layer
         for i, up in enumerate(ups):
             res[f"up{i}"] = up
+
+        # Save ouput of every downsampling layer
         for i, out in enumerate(stage_outputs):
             res[f"stage{i}"] = out
+
+        # Save output of the last downsampling layer
         res["out"] = x
         return res
 
