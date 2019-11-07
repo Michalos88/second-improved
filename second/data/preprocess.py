@@ -127,16 +127,22 @@ def prep_pointcloud(input_dict,
     input_dict format: dataset.get_sensor_data format
 
     """
+    # Run on every batch
+
     t = time.time()
     class_names = target_assigner.classes
     points = input_dict["lidar"]["points"]
+
+    # Get Lidar Points
     if training:
         anno_dict = input_dict["lidar"]["annotations"]
+
         gt_dict = {
             "gt_boxes": anno_dict["boxes"],
             "gt_names": anno_dict["names"],
             "gt_importance": np.ones([anno_dict["boxes"].shape[0]], dtype=anno_dict["boxes"].dtype),
         }
+
         if "difficulty" not in anno_dict:
             difficulty = np.zeros([anno_dict["boxes"].shape[0]],
                                   dtype=np.int32)
@@ -191,10 +197,12 @@ def prep_pointcloud(input_dict,
             keep_mask = np.logical_not(remove_mask)
             _dict_select(gt_dict, keep_mask)
         gt_dict.pop("difficulty")
-        if min_points_in_gt > 0:
+
+        # gt boxes contains less than this will be ignored
+        if gt_drop_max_keep > 0:
             # points_count_rbbox takes 10ms with 10 sweeps nuscenes data
             point_counts = box_np_ops.points_count_rbbox(points, gt_dict["gt_boxes"])
-            mask = point_counts >= min_points_in_gt
+            mask = point_counts >= gt_drop_max_keep
             _dict_select(gt_dict, mask)
         gt_boxes_mask = np.array(
             [n in class_names for n in gt_dict["gt_names"]], dtype=np.bool_)
