@@ -26,7 +26,7 @@ cmake --version
 ```
 conda create -n env_stereo python=3.6
 conda activate env_stereo
-conda install pytorch==1.0.0 torchvision==0.2.1 cuda100 -c pytorc
+conda install pytorch==1.0.0 torchvision==0.2.1 cuda100 -c pytorch
 ```
 
 ### spconv
