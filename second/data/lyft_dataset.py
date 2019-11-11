@@ -389,6 +389,7 @@ def create_lyft_infos(root_path,
         with open(root_path / "infos_val.pkl", 'wb') as f:
             pickle.dump(data, f)
 
+
 def _get_available_scenes(lyft):
     available_scenes = []
     print("total scene num:", len(lyft.scene))
@@ -478,49 +479,58 @@ def _fill_trainval_infos(lyft,
         e2g_r_mat = Quaternion(e2g_r).rotation_matrix
 
         sd_rec = lyft.get('sample_data', sample['data']["LIDAR_TOP"])
+
+        # Bi-directional sweeps
         sweeps = []
-        while len(sweeps) < max_sweeps:
-            if not sd_rec['prev'] == "":
+        while len(sweeps)/2 < max_sweeps:
+            if not sd_rec['prev'] == "" and not sd_rec['next'] == "":
 
-                sd_rec = lyft.get('sample_data', sd_rec['prev'])
-
+                sd_prev = lyft.get('sample_data', sd_rec['prev'])
+                sd_next = lyft.get('sample_data', sd_rec['next'])
                 # To make sure that broken sample does not end up in sweeps
-                if sd_rec['sample_token'] in splits.blk_listed:
-                    print('Sample Skipped: ', sd_rec['sample_token'])
+                if sd_prev['sample_token'] in splits.blk_listed or\
+                        sd_next['sample_token']in splits.blk_listed:
+                    print('Sample Skipped: ', sd_prev['sample_token'],
+                          'or', sd_next['sample_token'])
                     continue
+                sds = [sd_prev, sd_next]
 
-                cs_record = lyft.get('calibrated_sensor',
-                                     sd_rec['calibrated_sensor_token'])
-                pose_record = lyft.get('ego_pose', sd_rec['ego_pose_token'])
+                for sd_rec in sds:
+                    cs_record = lyft.get('calibrated_sensor',
+                                         sd_rec['calibrated_sensor_token'])
+                    pose_record = lyft.get('ego_pose',
+                                           sd_rec['ego_pose_token'])
 
-                lidar_path = lyft.get_sample_data_path(sd_rec['token'])
+                    lidar_path = lyft.get_sample_data_path(sd_rec['token'])
 
-                sweep = {
-                    "lidar_path": lidar_path,
-                    "sample_data_token": sd_rec['token'],
-                    "lidar2ego_translation": cs_record['translation'],
-                    "lidar2ego_rotation": cs_record['rotation'],
-                    "ego2global_translation": pose_record['translation'],
-                    "ego2global_rotation": pose_record['rotation'],
-                    "timestamp": sd_rec["timestamp"]
-                }
-                l2e_r_s = sweep["lidar2ego_rotation"]
-                l2e_t_s = sweep["lidar2ego_translation"]
-                e2g_r_s = sweep["ego2global_rotation"]
-                e2g_t_s = sweep["ego2global_translation"]
-                # sweep->ego->global->ego'->lidar
-                l2e_r_s_mat = Quaternion(l2e_r_s).rotation_matrix
-                e2g_r_s_mat = Quaternion(e2g_r_s).rotation_matrix
+                    sweep = {
+                        "lidar_path": lidar_path,
+                        "sample_data_token": sd_rec['token'],
+                        "lidar2ego_translation": cs_record['translation'],
+                        "lidar2ego_rotation": cs_record['rotation'],
+                        "ego2global_translation": pose_record['translation'],
+                        "ego2global_rotation": pose_record['rotation'],
+                        "timestamp": sd_rec["timestamp"]
+                    }
+                    l2e_r_s = sweep["lidar2ego_rotation"]
+                    l2e_t_s = sweep["lidar2ego_translation"]
+                    e2g_r_s = sweep["ego2global_rotation"]
+                    e2g_t_s = sweep["ego2global_translation"]
+                    # sweep->ego->global->ego'->lidar
+                    l2e_r_s_mat = Quaternion(l2e_r_s).rotation_matrix
+                    e2g_r_s_mat = Quaternion(e2g_r_s).rotation_matrix
 
-                R = (l2e_r_s_mat.T @ e2g_r_s_mat.T) @ (
-                    np.linalg.inv(e2g_r_mat).T @ np.linalg.inv(l2e_r_mat).T)
-                T = (l2e_t_s @ e2g_r_s_mat.T + e2g_t_s) @ (
-                    np.linalg.inv(e2g_r_mat).T @ np.linalg.inv(l2e_r_mat).T)
-                T -= e2g_t @ (np.linalg.inv(e2g_r_mat).T @ np.linalg.inv(
-                    l2e_r_mat).T) + l2e_t @ np.linalg.inv(l2e_r_mat).T
-                sweep["sweep2lidar_rotation"] = R.T  # points @ R.T + T
-                sweep["sweep2lidar_translation"] = T
-                sweeps.append(sweep)
+                    R = (l2e_r_s_mat.T @ e2g_r_s_mat.T) @ (
+                        np.linalg.inv(e2g_r_mat).T @ np.linalg.inv(
+                            l2e_r_mat).T)
+                    T = (l2e_t_s @ e2g_r_s_mat.T + e2g_t_s) @ (
+                        np.linalg.inv(e2g_r_mat).T @ np.linalg.inv(
+                            l2e_r_mat).T)
+                    T -= e2g_t @ (np.linalg.inv(e2g_r_mat).T @ np.linalg.inv(
+                        l2e_r_mat).T) + l2e_t @ np.linalg.inv(l2e_r_mat).T
+                    sweep["sweep2lidar_rotation"] = R.T  # points @ R.T + T
+                    sweep["sweep2lidar_translation"] = T
+                    sweeps.append(sweep)
             else:
                 break
 
