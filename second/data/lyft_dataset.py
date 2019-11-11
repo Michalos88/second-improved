@@ -220,22 +220,27 @@ class LyftDataset(Dataset):
         with open(res_path, "wb") as f:
             pickle.dump(lyft_annos, f)
 
+        res_path = Path(output_dir) / "gt_annos.pkl"
+
+        # Save processed data
+        with open(res_path, "wb") as f:
+            pickle.dump(gt_annos, f)
         print('gt_count:',
               len(gt_annos), '  ', 'pred_count:', len(lyft_annos))
 
-        # Evaluate score
-        import ray
-        from second.data.lyft_eval import eval_main
-
-        ray.init()
-        mAPs = [eval_main.remote(gt_annos,
-                                 lyft_annos,
-                                 round(threshold, 3))
-                for threshold in np.arange(0.5, 1.0, 0.05)]
-
-        print("Final Score = ", np.mean(ray.get(mAPs)))
-        return None
-
+        # # Evaluate score
+        # import ray
+        # from second.data.lyft_eval import eval_main
+        #
+        # ray.init()
+        # mAPs = [eval_main.remote(gt_annos,
+        #                          lyft_annos,
+        #                          round(threshold, 3))
+        #         for threshold in np.arange(0.5, 1.0, 0.05)]
+        #
+        # print("Final Score = ", np.mean(ray.get(mAPs)))
+        # return None
+        #
     @property
     def ground_truth_annotations(self):
 
@@ -710,7 +715,7 @@ def _lidar_lyft_box_to_global(info,
     box_list = []
     for box in boxes:
         # Move box to ego vehicle coord system
-        box.rotate(pyquaternion.Quaternion(info['lidar2ego_rotation']))
+        box.rotate_around_origin(pyquaternion.Quaternion(info['lidar2ego_rotation']))
         box.translate(np.array(info['lidar2ego_translation']))
         from second.configs.lyft.eval import eval_detection_configs
         # filter det in ego.
@@ -720,7 +725,7 @@ def _lidar_lyft_box_to_global(info,
         if radius > det_range:
             continue
         # Move box to global coord system
-        box.rotate(pyquaternion.Quaternion(info['ego2global_rotation']))
+        box.rotate_around_origin(pyquaternion.Quaternion(info['ego2global_rotation']))
         box.translate(np.array(info['ego2global_translation']))
         box_list.append(box)
     return box_list
