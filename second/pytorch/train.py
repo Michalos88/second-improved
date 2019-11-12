@@ -577,9 +577,9 @@ def evaluate(config_path,
 
     for example in iter(eval_dataloader):
         print(counter)
-        if counter < max_prev_step or counter == 3005:
-            counter += 1
-            continue
+        # if counter < max_prev_step or counter == 3005:
+        #     counter += 1
+        #     continue
 
         if counter % 1000 == 0:
             name = "dets_"+str(counter)+".pkl"
@@ -591,7 +591,7 @@ def evaluate(config_path,
             detections += net(example)
         counter += 1
 
-    with open(result_path_step / "result.pkl", 'wb') as f:
+    with open(result_path_step / "result3000.pkl", 'wb') as f:
         pickle.dump(detections, f)
     result_dict = eval_dataset.dataset.evaluation(detections,
                                                   str(result_path_step))
