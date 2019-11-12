@@ -310,13 +310,24 @@ class LyftDatasetD8(LyftDataset):
 
 
 @register_dataset
-class LyftDatasetD3000(LyftDataset):
+class LyftDatasetD3000A(LyftDataset):
+    """Reducing DataSet by factor D"""
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        self._lyft_infos = list(
+            sorted(self._lyft_infos, key=lambda e: e["timestamp"]))
+        self._lyft_infos = self._lyft_infos[:3000]
+
+
+@register_dataset
+class LyftDatasetD3000B(LyftDataset):
     """Reducing DataSet by factor D"""
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         self._lyft_infos = list(
             sorted(self._lyft_infos, key=lambda e: e["timestamp"]))
         self._lyft_infos = self._lyft_infos[3000:]
+
 
 def create_lyft_infos(root_path,
                       version="train",
