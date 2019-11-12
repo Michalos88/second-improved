@@ -124,7 +124,7 @@ class LyftDataset(Dataset):
                 "sweep2lidar_rotation"].T
             points_sweep[:, :3] += sweep["sweep2lidar_translation"]
             # To make sure we don't get negatives in forward sweeps
-            points_sweep[:, 4] = max(ts - sweep_ts, sweep_ts - ts)
+            points_sweep[:, 4] = ts - sweep_ts
             sweep_points_list.append(points_sweep)
 
         points = np.concatenate(sweep_points_list, axis=0)[:, [0, 1, 2, 4]]

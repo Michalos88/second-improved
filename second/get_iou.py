@@ -14,7 +14,7 @@ def get_score(gt_path, preds_path, cpus=2):
     with open(preds_path, "rb") as  f:
         preds = pickle.load(f)
 
-    ray.init(num_cpus=cpus)
+    ray.init(memory=10*10**9)
     mAPs = [eval_main.remote(gt_annos,
                              preds,
                              round(threshold, 3))
