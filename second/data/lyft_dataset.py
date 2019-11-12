@@ -176,10 +176,6 @@ class LyftDataset(Dataset):
 
     def evaluation_kaggle(self, detections, output_dir):
 
-        # Getting ground truth
-        # gt_annos = self.ground_truth_annotations
-        # if gt_annos is None:
-        #     return None
         lyft_annos = list()
 
         # Class name mapping
@@ -232,18 +228,9 @@ class LyftDataset(Dataset):
         #     x.astype(str)))
 
         res_path = Path(output_dir) / "submission.pkl"
-
-        # Save processed data
-        with open(res_path, "wb") as f:
-            pickle.dump(df, f)
-        # res_path = Path(output_dir) / "gt_annos.pkl"
-        #
-        # # Save processed data
-        # with open(res_path, "wb") as f:
-        #     pickle.dump(gt_annos, f)
         # print('gt_count:',
         #       len(gt_annos), '  ', 'pred_count:', len(lyft_annos))
-
+        #
         # # Evaluate score
         # import ray
         # from second.data.lyft_eval import eval_main
@@ -255,8 +242,13 @@ class LyftDataset(Dataset):
         #         for threshold in np.arange(0.5, 1.0, 0.05)]
         #
         # print("Final Score = ", np.mean(ray.get(mAPs)))
-        # return None
-        #
+
+        # Save processed data
+        with open(res_path, "wb") as f:
+            pickle.dump(df, f)
+
+        return None
+
     @property
     def ground_truth_annotations(self):
 
