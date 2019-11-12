@@ -224,28 +224,25 @@ class LyftDataset(Dataset):
             list(x.astype(str))))
         df['size'] = df['size'].apply(lambda x: " ".join(
             list(x.astype(str))))
-        # df = df.groupby('sample_token').apply(lambda x: " ".join(
-        #     x.astype(str)))
+        df['PredictionString'] = df['score'].astype(str) + " " +\
+            df['translation'].astype(str) + " " +\
+            df['size'].astype(str) + " " +\
+            df["yaw"].astype(str) + " " +\
+            df['name'].astype(str)
+        df = (df.groupby('sample_token')['PredictionString'].apply(
+                lambda x: " ".join(x))).reset_index()
+
+        df.columns = ["Id", "PredictionString"]
+
+        template = pd.read_csv('../data/lyft_test/sample_submission.csv')
+
+        template = template.set_index('Id')
+        template.columns = ['dummy']
+
+        template = template.join(df.set_index('Id'))
 
         res_path = Path(output_dir) / "submission.pkl"
-        # print('gt_count:',
-        #       len(gt_annos), '  ', 'pred_count:', len(lyft_annos))
-        #
-        # # Evaluate score
-        # import ray
-        # from second.data.lyft_eval import eval_main
-        #
-        # ray.init()
-        # mAPs = [eval_main.remote(gt_annos,
-        #                          lyft_annos,
-        #                          round(threshold, 3))
-        #         for threshold in np.arange(0.5, 1.0, 0.05)]
-        #
-        # print("Final Score = ", np.mean(ray.get(mAPs)))
-
-        # Save processed data
-        with open(res_path, "wb") as f:
-            pickle.dump(df, f)
+        template[['Id', 'PredictionString']].to_csv(res_path, index=False)
 
         return None
 

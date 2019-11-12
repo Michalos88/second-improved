@@ -581,7 +581,7 @@ def evaluate(config_path,
             counter += 1
             continue
 
-        if counter % 100 == 0:
+        if counter % 1000 == 0:
             name = "dets_"+str(counter)+".pkl"
             with open(result_path_step / name, 'wb') as f:
                 pickle.dump(detections, f)
