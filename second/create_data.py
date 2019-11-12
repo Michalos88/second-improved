@@ -34,11 +34,11 @@ def lyft_data_prep(root_path, version, dataset_name, max_sweeps=0,
                               max_sweeps=max_sweeps,
                               names_upsample=names_upsample)
 
-    name = "infos_train.pkl"
-    if version == "test":
-        name = "infos_test.pkl"
-    create_groundtruth_database_parallel(dataset_name,
-                                         root_path, Path(root_path) / name)
+    # name = "infos_train.pkl"
+    # if version == "test":
+    #     name = "infos_test.pkl"
+    # create_groundtruth_database_parallel(dataset_name,
+    #                                      root_path, Path(root_path) / name)
 
 
 if __name__ == '__main__':

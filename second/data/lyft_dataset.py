@@ -6,6 +6,8 @@ from pathlib import Path
 
 import fire
 import numpy as np
+import pandas as pd
+from pyquaternion import Quaternion
 
 # from second.core import box_np_ops
 # from second.core import preprocess as prep
@@ -175,9 +177,9 @@ class LyftDataset(Dataset):
     def evaluation_kaggle(self, detections, output_dir):
 
         # Getting ground truth
-        gt_annos = self.ground_truth_annotations
-        if gt_annos is None:
-            return None
+        # gt_annos = self.ground_truth_annotations
+        # if gt_annos is None:
+        #     return None
         lyft_annos = list()
 
         # Class name mapping
@@ -220,13 +222,27 @@ class LyftDataset(Dataset):
         with open(res_path, "wb") as f:
             pickle.dump(lyft_annos, f)
 
-        res_path = Path(output_dir) / "gt_annos.pkl"
+        df = pd.DataFrame(lyft_annos)
+        df['yaw'] = df['rotation'].apply(_quaternion_yaw)
+        df['translation'] = df['translation'].apply(lambda x: " ".join(
+            list(x.astype(str))))
+        df['size'] = df['size'].apply(lambda x: " ".join(
+            list(x.astype(str))))
+        # df = df.groupby('sample_token').apply(lambda x: " ".join(
+        #     x.astype(str)))
+
+        res_path = Path(output_dir) / "submission.pkl"
 
         # Save processed data
         with open(res_path, "wb") as f:
-            pickle.dump(gt_annos, f)
-        print('gt_count:',
-              len(gt_annos), '  ', 'pred_count:', len(lyft_annos))
+            pickle.dump(df, f)
+        # res_path = Path(output_dir) / "gt_annos.pkl"
+        #
+        # # Save processed data
+        # with open(res_path, "wb") as f:
+        #     pickle.dump(gt_annos, f)
+        # print('gt_count:',
+        #       len(gt_annos), '  ', 'pred_count:', len(lyft_annos))
 
         # # Evaluate score
         # import ray
@@ -393,6 +409,7 @@ def create_lyft_infos(root_path,
         data["infos"] = val_lyft_infos
         with open(root_path / "infos_val.pkl", 'wb') as f:
             pickle.dump(data, f)
+
 
 def _get_available_scenes(lyft):
     available_scenes = []
@@ -705,7 +722,8 @@ def _lidar_lyft_box_to_global(info,
     box_list = []
     for box in boxes:
         # Move box to ego vehicle coord system
-        box.rotate_around_origin(pyquaternion.Quaternion(info['lidar2ego_rotation']))
+        box.rotate_around_origin(
+                pyquaternion.Quaternion(info['lidar2ego_rotation']))
         box.translate(np.array(info['lidar2ego_translation']))
         from second.configs.lyft.eval import eval_detection_configs
         # filter det in ego.
@@ -715,10 +733,29 @@ def _lidar_lyft_box_to_global(info,
         if radius > det_range:
             continue
         # Move box to global coord system
-        box.rotate_around_origin(pyquaternion.Quaternion(info['ego2global_rotation']))
+        box.rotate_around_origin(
+                pyquaternion.Quaternion(info['ego2global_rotation']))
         box.translate(np.array(info['ego2global_translation']))
         box_list.append(box)
     return box_list
+
+
+def _quaternion_yaw(rot_mat) -> float:
+    """
+    Calculate the yaw angle from a quaternion.
+    It does not work for a box in the camera frame.
+    :param q: Quaternion of interest.
+    :return: Yaw angle in radians.
+    """
+    q = Quaternion(rot_mat)
+
+    # Project into xy plane.
+    v = np.dot(q.rotation_matrix, np.array([1, 0, 0]))
+
+    # Measure yaw using arctan.
+    yaw = np.arctan2(v[1], v[0])
+
+    return yaw
 
 
 if __name__ == "__main__":
