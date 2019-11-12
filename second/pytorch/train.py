@@ -593,6 +593,7 @@ def evaluate(config_path,
 
     with open(result_path_step / "result3000.pkl", 'wb') as f:
         pickle.dump(detections, f)
+
     result_dict = eval_dataset.dataset.evaluation(detections,
                                                   str(result_path_step))
     if result_dict is not None:
