@@ -212,7 +212,7 @@ class LyftDataset(Dataset):
             bar.print_bar()
 
         # TODO: Convert to pandas then csv
-        res_path = Path(output_dir) / "results_postproc.pkl"
+        res_path = Path(output_dir) / "results_postproc3000.pkl"
 
         # Save processed data
         with open(res_path, "wb") as f:
@@ -241,7 +241,7 @@ class LyftDataset(Dataset):
 
         template = template.join(df.set_index('Id'))
 
-        res_path = Path(output_dir) / "submission.pkl"
+        res_path = Path(output_dir) / "submission3000.csv"
         template[['Id', 'PredictionString']].to_csv(res_path, index=False)
 
         return None
@@ -304,6 +304,15 @@ class LyftDatasetD8(LyftDataset):
             sorted(self._lyft_infos, key=lambda e: e["timestamp"]))
         self._lyft_infos = self._lyft_infos[::8]
 
+
+@register_dataset
+class LyftDatasetD3000(LyftDataset):
+    """Reducing DataSet by factor D"""
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        self._lyft_infos = list(
+            sorted(self._lyft_infos, key=lambda e: e["timestamp"]))
+        self._lyft_infos = self._lyft_infos[3000:]
 
 def create_lyft_infos(root_path,
                       version="train",
