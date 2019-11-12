@@ -212,26 +212,30 @@ class LyftDataset(Dataset):
             bar.print_bar()
 
         # TODO: Convert to pandas then csv
+
         res_path = Path(output_dir) / "results_postproc.pkl"
 
         # Save processed data
-        with open(res_path, "wb") as f:
-            pickle.dump(lyft_annos, f)
-
+        with open(res_path, "rb") as f:
+            lyft_annos = pickle.load(f)
+        print("Loaded Annos")
         df = pd.DataFrame(lyft_annos)
         df['yaw'] = df['rotation'].apply(_quaternion_yaw)
         df['translation'] = df['translation'].apply(lambda x: " ".join(
-            list(x.astype(str))))
+            list(np.array(x).astype(str))))
         df['size'] = df['size'].apply(lambda x: " ".join(
-            list(x.astype(str))))
+            list(np.array(x).astype(str))))
+        print("clean up complete")
         df['PredictionString'] = df['score'].astype(str) + " " +\
             df['translation'].astype(str) + " " +\
             df['size'].astype(str) + " " +\
             df["yaw"].astype(str) + " " +\
             df['name'].astype(str)
+        import pdb
+        pdb.set_trace()
         df = (df.groupby('sample_token')['PredictionString'].apply(
                 lambda x: " ".join(x))).reset_index()
-
+        print('grouped')
         df.columns = ["Id", "PredictionString"]
 
         template = pd.read_csv('../data/lyft_test/sample_submission.csv')
@@ -240,8 +244,8 @@ class LyftDataset(Dataset):
         template.columns = ['dummy']
 
         template = template.join(df.set_index('Id'))
-
-        res_path = Path(output_dir) / "submission.pkl"
+        template = template.reset_index()
+        res_path = Path(output_dir) / "submission.csv"
         template[['Id', 'PredictionString']].to_csv(res_path, index=False)
 
         return None
