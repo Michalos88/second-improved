@@ -199,6 +199,7 @@ class RPN(nn.Module):
 
         return ret_dict
 
+
 class RPNNoHeadBase(nn.Module):
     def __init__(self,
                  use_norm=True,
@@ -312,6 +313,8 @@ class RPNNoHeadBase(nn.Module):
         raise NotImplementedError
 
     def forward(self, x):
+        # import pdb
+        # pdb.set_trace()
         ups = []
         stage_outputs = []
         for i in range(len(self.blocks)):
@@ -323,10 +326,16 @@ class RPNNoHeadBase(nn.Module):
         if len(ups) > 0:
             x = torch.cat(ups, dim=1)
         res = {}
+
+        # Save ouput of every upsamling layer
         for i, up in enumerate(ups):
             res[f"up{i}"] = up
+
+        # Save ouput of every downsampling layer
         for i, out in enumerate(stage_outputs):
             res[f"stage{i}"] = out
+
+        # Save output of the last downsampling layer
         res["out"] = x
         return res
 

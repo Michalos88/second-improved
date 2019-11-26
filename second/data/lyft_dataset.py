@@ -14,6 +14,7 @@ from second.data.dataset import Dataset, register_dataset
 # from second.utils.eval import get_coco_eval_result, get_official_eval_result
 from second.utils.progress_bar import progress_bar_iter as prog_bar
 from second.data import lyft_splits as splits
+from second.utils.progress_bar import ProgressBar
 
 
 @register_dataset
@@ -166,10 +167,8 @@ class LyftDataset(Dataset):
         return res
 
     def evaluation(self, detections, output_dir):
-        """kitti evaluation is very slow, remove it.
+        """Select evalutation prodcedure
         """
-        # res_kitti = self.evaluation_kitti(detections, output_dir)
-        # Select evalutation prodcedure
         res = self.evaluation_kaggle(detections, output_dir)
         return res
 
@@ -188,6 +187,9 @@ class LyftDataset(Dataset):
         for info in self._lyft_infos:
             token2info[info["token"]] = info
 
+        print("Post-processing labes...")
+        bar = ProgressBar()
+        bar.start(len(detections))
         for det in detections:
             annos = []
             boxes = _second_det_to_lyft_box(det)
@@ -209,35 +211,72 @@ class LyftDataset(Dataset):
                 annos.append(lyft_anno)
 
             lyft_annos.extend(annos)
+            bar.print_bar()
 
         # TODO: Convert to pandas then csv
-        res_path = Path(output_dir) / "results_lyft.pkl"
+        res_path = Path(output_dir) / "results_postproc.pkl"
 
         # Save processed data
         with open(res_path, "wb") as f:
             pickle.dump(lyft_annos, f)
 
+        res_path = Path(output_dir) / "gt_annos.pkl"
+
+        # Save processed data
+        with open(res_path, "wb") as f:
+            pickle.dump(gt_annos, f)
         print('gt_count:',
               len(gt_annos), '  ', 'pred_count:', len(lyft_annos))
 
-        # Evaluate score
-        import ray
-        from second.data.lyft_eval import eval_main
-
-        ray.init()
-        mAPs = [eval_main.remote(gt_annos,
-                                 lyft_annos,
-                                 round(threshold, 3))
-                for threshold in np.arange(0.5, 1.0, 0.05)]
-
-        print("Final Score = ", np.mean(ray.get(mAPs)))
-        return None
-
+        # # Evaluate score
+        # import ray
+        # from second.data.lyft_eval import eval_main
+        #
+        # ray.init()
+        # mAPs = [eval_main.remote(gt_annos,
+        #                          lyft_annos,
+        #                          round(threshold, 3))
+        #         for threshold in np.arange(0.5, 1.0, 0.05)]
+        #
+        # print("Final Score = ", np.mean(ray.get(mAPs)))
+        # return None
+        #
     @property
     def ground_truth_annotations(self):
 
-        with open(self._root_path/'val_gt_annos.pkl', 'rb') as f:
-            gt_annos = pickle.load(f)
+        from lyft_dataset_sdk.lyftdataset import LyftDataset
+        lyft = LyftDataset(data_path=self._root_path,
+                           json_path=self._root_path/'data',
+                           verbose=True)
+        gt_annos = list()
+        for info in self._lyft_infos:
+
+            token = info['token']
+            sample_data = lyft.get('sample', token)
+            for anno_token in sample_data['anns']:
+                object = lyft.get('sample_annotation', anno_token)
+
+                gt_annos.append({
+                    "sample_token": token,
+                    "name": object['category_name'],
+                    "translation": object['translation'],
+                    "size": object['size'],
+                    "rotation": object['rotation'],
+                })
+        # # in case of reduced val set
+        # if len(self._lyft_infos) < 5000:
+        #     sample_tokens = set()
+        #     total_annos = 0
+        #     for sample in self._lyft_infos:
+        #         sample_tokens.add(sample['token'])
+        #         total_annos += len(sample['gt_names'])
+        #
+        #     new_gt_annos = list()
+        #     for i in range(len(gt_annos)):
+        #         if gt_annos[i]['sample_token'] in sample_tokens:
+        #             new_gt_annos.append(gt_annos[i])
+        #     assert len(new_gt_annos) == total_annos
+        #     return new_gt_annos
         return gt_annos
 
 
@@ -261,7 +300,10 @@ class LyftDatasetD8(LyftDataset):
         self._lyft_infos = self._lyft_infos[::8]
 
 
-def create_lyft_infos(root_path, version="train", max_sweeps=10):
+def create_lyft_infos(root_path,
+                      version="train",
+                      max_sweeps=10,
+                      names_upsample=False):
 
     # TODO: Reorganize folders to /lyft/train/images
 
@@ -318,6 +360,9 @@ def create_lyft_infos(root_path, version="train", max_sweeps=10):
     train_lyft_infos, val_lyft_infos = _fill_trainval_infos(
         lyft, train_scenes, val_scenes, test, max_sweeps=max_sweeps)
 
+    if names_upsample:
+        train_lyft_infos = _names_upsample(train_lyft_infos)
+
     metadata = {
         "version": version,
     }
@@ -348,44 +393,6 @@ def create_lyft_infos(root_path, version="train", max_sweeps=10):
         data["infos"] = val_lyft_infos
         with open(root_path / "infos_val.pkl", 'wb') as f:
             pickle.dump(data, f)
-
-
-def create_ground_truth_annos(root_path, info_path):
-    from lyft_dataset_sdk.lyftdataset import LyftDataset
-
-    root_path = Path(root_path)
-
-    lyft = LyftDataset(data_path=root_path,
-                       json_path=root_path/'data',
-                       verbose=True)
-
-    with open(info_path, 'rb') as f:
-        data = pickle.load(f)
-
-    lyft_infos = data["infos"]
-
-    lyft_infos = list(
-        sorted(lyft_infos, key=lambda e: e["timestamp"]))
-
-    gt_annos = []
-    for info in lyft_infos:
-
-        token = info['token']
-        sample_data = lyft.get('sample', token)
-        for anno_token in sample_data['anns']:
-            object = lyft.get('sample_annotation', anno_token)
-
-            gt_annos.append({
-                "sample_token": token,
-                "name": object['category_name'],
-                "translation": object['translation'],
-                "size": object['size'],
-                "rotation": object['rotation'],
-            })
-
-    with open(root_path/'val_gt_annos.pkl', 'wb') as f:
-        pickle.dump(gt_annos, f)
-
 
 def _get_available_scenes(lyft):
     available_scenes = []
@@ -431,9 +438,9 @@ def _fill_trainval_infos(lyft,
     for sample in prog_bar(lyft.sample):
 
         # Check if sample comes from either train or val sets
-        if sample["scene_token"] not in train_scenes and\
-                sample["scene_token"] not in val_scenes and\
-                sample['token'] not in splits.blk_listed:
+        if (sample["scene_token"] not in train_scenes and
+                sample["scene_token"] not in val_scenes) or\
+                sample['token'] in splits.blk_listed:
             continue
 
         # Getting sample data for lidar and front camera
@@ -568,10 +575,11 @@ def _fill_trainval_infos(lyft,
                 [a["num_radar_pts"] for a in annotations])
 
         # Split samples based on scene token
-        if sample["scene_token"] in train_scenes:
-            train_lyft_infos.append(info)
-        elif sample["scene_token"] in val_scenes:
-            val_lyft_infos.append(info)
+        if sample['token'] not in splits.blk_listed:
+            if sample["scene_token"] in train_scenes:
+                train_lyft_infos.append(info)
+            elif sample["scene_token"] in val_scenes:
+                val_lyft_infos.append(info)
 
     return train_lyft_infos, val_lyft_infos
 
@@ -635,6 +643,32 @@ def get_box_mean(info_path, class_name="car",
     }
 
 
+def _names_upsample(db_infos):
+    from collections import defaultdict
+    from random import choice
+
+    name_samples = defaultdict(list)
+    aggr_name_sample_count = 0
+
+    print('Upsampling...')
+    for idx in prog_bar(range(len(db_infos))):
+        unique_names = set(db_infos[idx]['gt_names'])
+        aggr_name_sample_count += len(unique_names)
+        for name in unique_names:
+            name_samples['name'].append(idx)
+
+    sampling_size = aggr_name_sample_count // len(name_samples)
+
+    upsampled_db_infos = list()
+
+    for name in name_samples:
+        indexes = name_samples[name]
+        for _ in range(sampling_size):
+            upsampled_db_infos.append(db_infos[choice(indexes)])
+
+    return upsampled_db_infos
+
+
 def _second_det_to_lyft_box(detection):
     from lyft_dataset_sdk.utils.data_classes import Box
     import pyquaternion
@@ -671,7 +705,7 @@ def _lidar_lyft_box_to_global(info,
     box_list = []
     for box in boxes:
         # Move box to ego vehicle coord system
-        box.rotate(pyquaternion.Quaternion(info['lidar2ego_rotation']))
+        box.rotate_around_origin(pyquaternion.Quaternion(info['lidar2ego_rotation']))
         box.translate(np.array(info['lidar2ego_translation']))
         from second.configs.lyft.eval import eval_detection_configs
         # filter det in ego.
@@ -681,7 +715,7 @@ def _lidar_lyft_box_to_global(info,
         if radius > det_range:
             continue
         # Move box to global coord system
-        box.rotate(pyquaternion.Quaternion(info['ego2global_rotation']))
+        box.rotate_around_origin(pyquaternion.Quaternion(info['ego2global_rotation']))
         box.translate(np.array(info['ego2global_translation']))
         box_list.append(box)
     return box_list
