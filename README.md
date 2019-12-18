@@ -1,20 +1,34 @@
-# SECOND for KITTI/NuScenes object detection (1.6.0 Alpha)
-SECOND detector.
+# Second-Improved
+Implementation of SECOND paper for 3D Object Detection with following performance improvements:
+1. Full Lyft Dataset Integration 
+2. Parallel Data Preperation with Ray 
+3. Checkpoints during training
+4. Class upsampling, as in [CBGS paper](https://arxiv.org/abs/1908.09492)
+5. Mean IOU Computation, just like in Lyft Kaggle Competition
+6. Parallel Score Computation
+7. Debugged config usage (some configs were not trully connected to anything)
+8. Added PathLib Support
+9. Added Scripts for Evaluation, Training and Data Prep
+10. Handling of corrupted scenes in Lyft DataSet
 
-"Alpha" means there may be many bugs, config format may change, spconv API may change.
+This repo is based on [@traveller59's second.pytorch](https://github.com/traveller59/second.pytorch).
 
-ONLY support python 3.6+, pytorch 1.0.0+. Tested in Ubuntu 16.04/18.04/Windows 10.
-
-If you want to train nuscenes dataset, see [this](NUSCENES-GUIDE.md).
-
+Using this code and configuration, I won 27th place in [2019 Lyft 3D Object Dectection Kaggle Competition](https://www.kaggle.com/c/3d-object-detection-for-autonomous-vehicles/leaderboard). 
 
 ## Instalation
 
-### CMake
+### Clone code
+
+```bash
+git clone https://github.com/traveller59/second.pytorch.git
+cd ./second.pytorch/second
 ```
+
+### CMake
+```bash
 wget "https://github.com/Kitware/CMake/releases/download/v3.15.4/cmake-3.15.4.tar.gz"
-tar xf cmake-*
-cd ./cmake*
+tar xf cmake-3.15.4.tar.gz
+cd ./cmake-3.15.4/
 ./configure
 make
 make install
@@ -23,14 +37,14 @@ cmake --version
 ```
 
 ### Pytorch
-```
+```bash
 conda create -n env_stereo python=3.6
 conda activate env_stereo
 conda install pytorch==1.0.0 torchvision==0.2.1 cuda100 -c pytorch
 ```
 
 ### spconv
-```
+```bash
 git clone https://github.com/Michalos88/spconv --recursive
 sudo apt-get install libboost-all-dev
 cd spconv/
@@ -38,104 +52,21 @@ python setup.py bdist_wheel
 cd ./dist/
 pip install spconv-1.1-cp36-cp36m-linux_x86_64.whl
 ```
-## News
 
-2019-4-1: SECOND V1.6.0alpha released: New Data API, [NuScenes](https://www.nuscenes.org) support, [PointPillars](https://github.com/nutonomy/second.pytorch) support, fp16 and multi-gpu support.
-
-2019-3-21: SECOND V1.5.1 (minor improvement and bug fix) released!
-
-2019-1-20: SECOND V1.5 released! Sparse convolution-based network.
-
-See [release notes](RELEASE.md) for more details.
-
-_WARNING_: you should rerun info generation after every code update.
-
-### Performance in KITTI validation set (50/50 split)
-
-```car.fhd.config``` + 160 epochs (25 fps in 1080Ti):
-
-```
-Car AP@0.70, 0.70, 0.70:
-bbox AP:90.77, 89.50, 80.80
-bev  AP:90.28, 87.73, 79.67
-3d   AP:88.84, 78.43, 76.88
-```
-
-```car.fhd.config``` + 50 epochs + super converge (6.5 hours) +  (25 fps in 1080Ti):
-
-```
-Car AP@0.70, 0.70, 0.70:
-bbox AP:90.78, 89.59, 88.42
-bev  AP:90.12, 87.87, 86.77
-3d   AP:88.62, 78.31, 76.62
-```
-
-```car.fhd.onestage.config``` + 50 epochs + super converge (6.5 hours) +  (25 fps in 1080Ti):
-
-```
-Car AP@0.70, 0.70, 0.70:
-bbox AP:97.65, 89.59, 88.72
-bev  AP:90.38, 88.20, 86.98
-3d   AP:89.16, 78.78, 77.41
-```
-
-### Performance in NuScenes validation set (all.pp.config, NuScenes mini train set, 3517 samples, not v1.0-mini)
-
-```
-car Nusc dist AP@0.5, 1.0, 2.0, 4.0
-62.90, 73.07, 76.77, 78.79
-bicycle Nusc dist AP@0.5, 1.0, 2.0, 4.0
-0.00, 0.00, 0.00, 0.00
-bus Nusc dist AP@0.5, 1.0, 2.0, 4.0
-9.53, 26.17, 38.01, 40.60
-construction_vehicle Nusc dist AP@0.5, 1.0, 2.0, 4.0
-0.00, 0.00, 0.44, 1.43
-motorcycle Nusc dist AP@0.5, 1.0, 2.0, 4.0
-9.25, 12.90, 13.69, 14.11
-pedestrian Nusc dist AP@0.5, 1.0, 2.0, 4.0
-61.44, 62.61, 64.09, 66.35
-traffic_cone Nusc dist AP@0.5, 1.0, 2.0, 4.0
-11.63, 13.14, 15.81, 21.22
-trailer Nusc dist AP@0.5, 1.0, 2.0, 4.0
-0.80, 9.90, 17.61, 23.26
-truck Nusc dist AP@0.5, 1.0, 2.0, 4.0
-9.81, 21.40, 27.55, 30.34
-```
-
-## Install
-
-### 1. Clone code
-
-```bash
-git clone https://github.com/traveller59/second.pytorch.git
-cd ./second.pytorch/second
-```
-
-### 2. Install dependence python packages
-
-It is recommend to use Anaconda package manager.
+### Python Dependencies
 
 ```bash
 conda install scikit-image scipy numba pillow matplotlib
 ```
 
 ```bash
-pip install fire tensorboardX protobuf opencv-python
+pip install fire tensorboardX protobuf opencv-python ray 
 ```
-
-If you don't have Anaconda:
-
-```bash
-pip install numba scikit-image scipy pillow
-```
-
-Follow instructions in [spconv](https://github.com/traveller59/spconv) to install spconv.
-
-If you want to train with fp16 mixed precision (train faster in RTX series, Titan V/RTX and Tesla V100, but I only have 1080Ti), you need to install [apex](https://github.com/NVIDIA/apex).
 
 If you want to use NuScenes dataset, you need to install [nuscenes-devkit](https://github.com/nutonomy/nuscenes-devkit).
+If you want to use Lyft dataset, you need to install [lyft-devkit](https://github.com/lyft/nuscenes-devkit).
 
-### 3. Setup cuda for numba (will be removed in 1.6.0 release)
+### Setup cuda for numba 
 
 you need to add following environment variable for numba.cuda, you can add them to ~/.bashrc:
 
@@ -145,7 +76,11 @@ export NUMBAPRO_NVVM=/usr/local/cuda/nvvm/lib64/libnvvm.so
 export NUMBAPRO_LIBDEVICE=/usr/local/cuda/nvvm/libdevice
 ```
 
-### 4. add second.pytorch/ to PYTHONPATH
+### add second.pytorch/ to PYTHONPATH
+
+```bash
+export PATHONPATH=.
+```
 
 ## Prepare dataset
 
@@ -195,34 +130,27 @@ python create_data.py nuscenes_data_prep --data_path=NUSCENES_TRAINVAL_DATASET_R
 python create_data.py nuscenes_data_prep --data_path=NUSCENES_TEST_DATASET_ROOT --version="v1.0-test" --max_sweeps=10
 --dataset_name="NuscenesDataset"
 ```
-This will create gt database **without velocity**. to add velocity, use dataset name ```NuscenesDatasetVelo```.
 
-* Modify config file
+* [Lyft](https://www.nuscenes.org) Dataset preparation
 
-There is some path need to be configured in config file:
-
+Download NuScenes dataset:
+```plain
+└── ../lyft_data/train
+       ├── samples       <-- key frames
+       ├── sweeps        <-- frames without annotation
+       ├── maps          <-- unused
+       └── v1.0-trainval <-- metadata and annotations
+└── ../lyft_data/test
+       ├── samples       <-- key frames
+       ├── sweeps        <-- frames without annotation
+       ├── maps          <-- unused
+       └── v1.0-test     <-- metadata
+```
+Then run
 ```bash
-train_input_reader: {
-  ...
-  database_sampler {
-    database_info_path: "/path/to/dataset_dbinfos_train.pkl"
-    ...
-  }
-  dataset: {
-    dataset_class_name: "DATASET_NAME"
-    kitti_info_path: "/path/to/dataset_infos_train.pkl"
-    kitti_root_path: "DATASET_ROOT"
-  }
-}
-...
-eval_input_reader: {
-  ...
-  dataset: {
-    dataset_class_name: "DATASET_NAME"
-    kitti_info_path: "/path/to/dataset_infos_val.pkl"
-    kitti_root_path: "DATASET_ROOT"
-  }
-}
+python create_data.py lyft_data_prep --data_path=../lyft_data/train --version="v1.0-trainval" 
+python create_data.py nuscenes_data_prep --data_path=../lyft_data/testT --version="v1.0-test" 
+--dataset_name="LyftDataset"
 ```
 
 ## Usage
@@ -285,54 +213,6 @@ nvidia-docker run -it --rm -v /media/yy/960evo/datasets/:/root/data -v $HOME/pre
 python ./pytorch/train.py evaluate --config_path=./configs/car.config --model_dir=/root/model/car
 ```
 
-## Try Kitti Viewer Web
-
-### Major step
-
-1. run ```python ./kittiviewer/backend/main.py main --port=xxxx``` in your server/local.
-
-2. run ```cd ./kittiviewer/frontend && python -m http.server``` to launch a local web server.
-
-3. open your browser and enter your frontend url (e.g. http://127.0.0.1:8000, default]).
-
-4. input backend url (e.g. http://127.0.0.1:16666)
-
-5. input root path, info path and det path (optional)
-
-6. click load, loadDet (optional), input image index in center bottom of screen and press Enter.
-
-### Inference step
-
-Firstly the load button must be clicked and load successfully.
-
-1. input checkpointPath and configPath.
-
-2. click buildNet.
-
-3. click inference.
-
-![GuidePic](https://raw.githubusercontent.com/traveller59/second.pytorch/master/images/viewerweb.png)
 
 
 
-## Try Kitti Viewer (Deprecated)
-
-You should use kitti viewer based on pyqt and pyqtgraph to check data before training.
-
-run ```python ./kittiviewer/viewer.py```, check following picture to use kitti viewer:
-![GuidePic](https://raw.githubusercontent.com/traveller59/second.pytorch/master/images/simpleguide.png)
-
-## Concepts
-
-
-* Kitti lidar box
-
-A kitti lidar box is consist of 7 elements: [x, y, z, w, l, h, rz], see figure.
-
-![Kitti Box Image](https://raw.githubusercontent.com/traveller59/second.pytorch/master/images/kittibox.png)
-
-All training and inference code use kitti box format. So we need to convert other format to KITTI format before training.
-
-* Kitti camera box
-
-A kitti camera box is consist of 7 elements: [x, y, z, l, h, w, ry].
